@@ -2,10 +2,10 @@ import os
 import pathlib
 from google import genai
 from typing import List, Optional
-from .colors import Colors
-from gemini.client import get_chapters_from_gemini, process_pdfs_with_gemini_sdk
-from gemini.models import *
-from pdf_processing.core import PDFProcessor
+from study_flashcards_from_pdf.pdf_processing.core import PDFProcessor
+from study_flashcards_from_pdf.gemini.client import get_chapters_from_gemini, process_pdfs_with_gemini_sdk
+from study_flashcards_from_pdf.gemini.models import ChapterInfo
+from study_flashcards_from_pdf.utils.colors import Colors # Assuming pdf_processing/core.py
 
 if __name__ == "__main__":
     pdf_folder: str = "."
@@ -22,8 +22,8 @@ if __name__ == "__main__":
 
     gemini_client: genai.Client = genai.Client(api_key=api_key)
 
-    PAGES_TO_ANALYZE_FOR_CHAPTERS: int = 10  # RIDOTTO A 10
-    PAGES_TO_ANALYZE_FOR_FIRST_CHAPTER_PHYSICAL_PAGE: int = 25  # INVARIATO
+    PAGES_TO_ANALYZE_FOR_CHAPTERS: int = 10
+    PAGES_TO_ANALYZE_FOR_FIRST_CHAPTER_PHYSICAL_PAGE: int = 25
 
     pdf_files_to_process: List[str] = [
         f for f in os.listdir(pdf_folder) if f.lower().endswith(".pdf")
@@ -34,6 +34,15 @@ if __name__ == "__main__":
             f"{Colors.WARNING}Nessun file PDF trovato nella cartella specificata per la divisione in capitoli.{Colors.ENDC}"
         )
     else:
+        # Ask the user for the subject matter
+        subject_matter_input: str = input(
+            f"{Colors.OKCYAN}Per quale materia vuoi generare le schede di studio? (es. 'Algebra Lineare', 'Storia Romana', 'Fisica Quantistica'): {Colors.ENDC}"
+        )
+        if not subject_matter_input.strip():
+            print(f"{Colors.WARNING}Nessuna materia specificata. Utilizzo 'materia generica'.{Colors.ENDC}")
+            subject_matter_input = "materia generica"
+
+
         for pdf_file in pdf_files_to_process:
             full_pdf_path: pathlib.Path = pathlib.Path(
                 os.path.join(pdf_folder, pdf_file)
@@ -41,11 +50,12 @@ if __name__ == "__main__":
 
             book_structure = get_chapters_from_gemini(
                 full_pdf_path,
-                gemini_model_1_5,  # Modello per i capitoli
-                gemini_model_2_5,  # Modello per trovare l'indice del primo capitolo nel pdf
+                gemini_model_1_5,
+                gemini_model_2_5,
                 gemini_client,
-                PAGES_TO_ANALYZE_FOR_CHAPTERS,
-                PAGES_TO_ANALYZE_FOR_FIRST_CHAPTER_PHYSICAL_PAGE,
+                lang="it", # Assuming Italian is the desired language for prompts
+                pages_to_process_chapters=PAGES_TO_ANALYZE_FOR_CHAPTERS,
+                pages_to_process_physical_page=PAGES_TO_ANALYZE_FOR_FIRST_CHAPTER_PHYSICAL_PAGE,
             )
 
             if book_structure:
@@ -69,8 +79,12 @@ if __name__ == "__main__":
                 )
 
                 process_pdfs_with_gemini_sdk(
-                    output_chapter_folder, gemini_model_2_5, gemini_client, lang="it"
-                )  # TODO: Make other languages available
+                    output_chapter_folder,
+                    gemini_model_2_5,
+                    gemini_client,
+                    lang="it", 
+                    subject_matter=subject_matter_input,
+                )
             else:
                 print(
                     f"{Colors.WARNING}Impossibile ottenere informazioni sui capitoli per '{pdf_file}'. Salto la divisione e l'elaborazione.{Colors.ENDC}"

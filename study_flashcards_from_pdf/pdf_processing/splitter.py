@@ -2,8 +2,8 @@ import os
 import pathlib
 from pypdf import PdfReader, PdfWriter
 from typing import List
-from gemini.models import ChapterInfo
-from colors import Colors
+from study_flashcards_from_pdf.gemini.models import ChapterInfo
+from study_flashcards_from_pdf.utils.colors import Colors
 
 
 def split_pdf_by_chapters(

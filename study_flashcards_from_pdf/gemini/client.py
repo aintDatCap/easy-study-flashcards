@@ -1,3 +1,4 @@
+# client.py
 import os
 import pathlib
 import time
@@ -6,10 +7,13 @@ from typing import List, Optional
 from google import genai
 from google.genai import types
 from pypdf import PdfReader
-from .models import ChapterInfo, ChaptersOnly, BookStructure
-from colors import Colors
+
+from study_flashcards_from_pdf.gemini.models import BookStructure, ChapterInfo, ChaptersOnly
 from study_flashcards_from_pdf.gemini.prompts import PromptsForGemini
-from pdf_processing.core import PDFProcessor, fix_common_generated_latex_erros
+from study_flashcards_from_pdf.utils.colors import Colors
+
+from study_flashcards_from_pdf.pdf_processing.core import PDFProcessor
+from study_flashcards_from_pdf.utils.latex import fix_common_generated_latex_erros
 
 
 def get_chapters_from_gemini(
@@ -192,7 +196,11 @@ def get_chapters_from_gemini(
 
 
 def process_pdfs_with_gemini_sdk(
-    folder_path: str, model_name: str, client: genai.Client, lang: str
+    folder_path: str,
+    model_name: str,
+    client: genai.Client,
+    lang: str,
+    subject_matter: str,  # Added subject_matter
 ) -> None:
     """
     Processes PDF files with the Gemini SDK, including LaTeX validation and auto-correction,
@@ -287,7 +295,10 @@ def process_pdfs_with_gemini_sdk(
                         f"\n{Colors.OKCYAN}Initial invocation of Gemini model '{model_name}' for '{pdf_file}'...{Colors.ENDC}"
                     )
                     prompt_to_send = (
-                        PromptsForGemini.get_prompt_to_elaborate_single_pdf(lang=lang)
+                        PromptsForGemini.get_prompt_to_elaborate_single_pdf(
+                            lang=lang,
+                            subject_matter=subject_matter,  # Pass subject_matter
+                        )
                     )
                     contents_to_send = [original_pdf_part, prompt_to_send]
                 else:

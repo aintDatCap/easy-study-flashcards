@@ -5,7 +5,8 @@ import subprocess
 from typing import List, Optional, Tuple
 
 from pypdf import PdfReader, PdfWriter
-from ..colors import Colors
+
+from study_flashcards_from_pdf.utils.colors import Colors
 
 
 class PDFProcessor:

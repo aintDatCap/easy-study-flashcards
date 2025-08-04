@@ -17,10 +17,12 @@ class PromptsForGemini:
         ].format(pages_to_scan=pages_to_scan)
 
     @staticmethod
-    def get_prompt_to_elaborate_single_pdf(lang: str) -> str:
+    def get_prompt_to_elaborate_single_pdf(lang: str, subject_matter: str) -> str: # Added subject_matter parameter
         assert lang in PromptsForGemini.prompts
 
-        return PromptsForGemini.prompts[lang]["prompt_elaborate_single_pdf"]
+        return PromptsForGemini.prompts[lang]["prompt_elaborate_single_pdf"].format(
+            subject_matter=subject_matter
+        )
 
     @staticmethod
     def get_prompt_for_error_correction(lang: str, error_message: str) -> str:
@@ -55,22 +57,26 @@ class PromptsForGemini:
                 La tua risposta deve essere *esclusivamente* il numero intero della pagina fisica. Non aggiungere alcun testo aggiuntivo, spiegazione o formattazione.
             """,
             "prompt_elaborate_single_pdf": r"""
-                **Ruolo:** Sei un assistente AI esperto nell'elaborazione di documenti accademici. La tua specializzazione è l'analisi e la ristrutturazione di contenuti tecnici, in particolare nel campo dell'algebra lineare.
+                **Ruolo:** Sei un assistente AI esperto nella creazione di schede di studio interattive da documenti accademici sulla materia di {subject_matter}.
 
-                Sto analizzando un documento PDF contenente materiale didattico (lezioni, appunti, dispense) relativo a "Algebra Lineare". Ho bisogno di creare un documento strutturato in LaTeX che riassuma i contenuti chiave, estragga gli esercizi presentati e generi nuovi esercizi.
+                Il tuo compito è analizzare il documento PDF fornito e generare un documento LaTeX strutturato per creare schede di studio, focalizzandoti sulla richiesta attiva di conoscenza al lettore. Le schede devono essere ottimizzate per imparare, richiedendo al lettore di fornire le risposte.
 
-                1.  Analizza attentamente il testo del documento PDF che ti verrà fornito.
+                1.  Analizza attentamente il testo del documento PDF.
                 2.  **Identifica e estrai l'intestazione del documento, se presente, come il titolo principale, l'autore e la data.**
-                3.  **Identifica e estrai tutti i teoremi presentati.** Per ogni teorema, dovrai includere il suo enunciato completo e, se presente, il suo numero (es. Teorema 1.1, Teorema di Rouché-Capelli). **NON devi fornire la dimostrazione del teorema.**
-                4.  **Identifica e estrai le definizioni dei concetti chiave.** Per ogni concetto, dovrai indicare il termine da definire richiedendo poi al lettore di dare la definizione e aggiungendo il numero della definizione. **È fondamentale che l'ordine di presentazione dei teoremi e delle definizioni nel documento LaTeX rispecchi l'ordine in cui appaiono nel PDF originale.**
-                5.  **Identifica e estrai gli esercizi presentati.** Per ogni esercizio, dovrai includere il testo completo dell'esercizio. **Se il testo dell'esercizio originale non è esplicitamente presente ma è solo un riferimento (es. "Esercizio 1"), l'AI dovrà generare un testo dell'esercizio rappresentativo basandosi sul contesto circostante o sul tipo di problema tipico di quell'argomento.** **NON devi fornire la soluzione dell'esercizio.**
-                6.  **Genera 1 esercizio aggiuntivo di algebra lineare per ciascun esercizio estratto.** Questi esercizi generati dall'AI devono richiedere gli stessi strumenti concettuali per la risoluzione degli esercizi originali, ma devono presentare dati, contesti o scenari diversi in modo da essere concettualmente distinti. Assicurati che siano coerenti con il livello di difficoltà e gli argomenti trattati nel documento originale.
-                7.  Ignora completamente:
+                3.  **Identifica e estrai tutti i teoremi o principi fondamentali presentati.** Per ogni teorema, includi il suo enunciato completo e, se presente, il suo numero (es. Teorema 1.1). Subito dopo l'enunciato, inserisci una richiesta al lettore di dimostrarlo. **NON devi fornire la dimostrazione del teorema.**
+                4.  **Identifica e estrai le definizioni dei concetti chiave.** Per ogni concetto, indica chiaramente il termine da definire e poi chiedi al lettore di fornirne la definizione, aggiungendo il numero della definizione se presente.
+                5.  **Identifica e estrai le domande a risposta aperta implicite o esplicite nel testo.** Queste possono derivare da paragrafi che introducono un problema o una discussione. Trasforma queste informazioni in domande dirette rivolte al lettore.
+                6.  **Identifica e estrai gli esercizi presentati.** Per ogni esercizio, includi il testo completo. **Se il testo dell'esercizio originale non è esplicitamente presente ma è solo un riferimento (es. "Esercizio 1"), l'AI dovrà generare un testo dell'esercizio rappresentativo basandosi sul contesto circostante o sul tipo di problema tipico di quell'argomento.** **NON devi fornire la soluzione dell'esercizio.**
+                7.  **Genera 1 esercizio aggiuntivo per ciascun esercizio estratto.** Questi esercizi generati dall'AI devono richiedere gli stessi strumenti concettuali per la risoluzione degli esercizi originali, ma devono presentare dati, contesti o scenari diversi in modo da essere concettualmente distinti. Assicurati che siano coerenti con il livello di difficoltà e gli argomenti trattati nel documento originale.
+
+                **[REGOLA FONDAMENTALE]**: In nessun caso devono essere fornite spiegazioni dettagliate, soluzioni di esercizi, dimostrazioni di teoremi, o risposte a domande. L'obiettivo è stimolare la memoria attiva del lettore.
+
+                8.  Ignora completamente:
                     * Dimostrazioni complete di teoremi.
-                    * Commenti o spiegazioni aggiuntive che non rientrano nelle categorie sopra menzionate (teoremi, definizioni, esercizi).
+                    * Commenti o spiegazioni aggiuntive che non rientrano nelle categorie sopra menzionate (teoremi, definizioni, domande, esercizi).
                     * Griglie di valutazione o punteggi.
-                    * **Contenuto completo del libro o sezioni esplicative approfondite che non siano teoremi, definizioni o esercizi.**
-                    * **ISBN o qualsiasi altro dato editoriale.**
+                    * Contenuto completo del libro o sezioni esplicative approfondite che non siano teoremi, definizioni, domande o esercizi.
+                    * ISBN o qualsiasi altro dato editoriale.
 
                 * Il file finale deve essere in formato LaTeX (`.tex`).
                 * **Inizia il file con la seguente struttura LaTeX:**
@@ -101,9 +107,10 @@ class PromptsForGemini:
                     * Il titolo principale usando `\title{}` e `\maketitle`.
                     * L'autore usando `\author{}`.
                 * **Utilizza le seguenti sezioni per organizzare il contenuto:**
-                    * **Contenuti Estratti:** Utilizza una sezione intitolata `\section*{Contenuti Estratti}`. All'interno di questa sezione, elenca teoremi e definizioni nell'ordine esatto in cui sono stati trovati nel documento originale.
-                        * Ogni teorema deve essere presentato come un elemento di un elenco numerato (`enumerate`). L'enunciato deve seguire il formato: `\textbf{Teorema [Numero del Teorema/Nome]:} [Enunciato del teorema].`
+                    * **Definizioni e Teoremi:** Utilizza una sezione intitolata `\section*{Definizioni e Teoremi}`. All'interno di questa sezione, elenca teoremi e definizioni nell'ordine esatto in cui sono stati trovati nel documento originale.
+                        * Ogni teorema deve essere presentato come un elemento di un elenco numerato (`enumerate`). L'enunciato deve seguire il formato: `\textbf{Teorema [Numero del Teorema/Nome]:} [Enunciato del teorema]. \\textit{Dimostra il seguente teorema.}`
                         * Ogni concetto da definire deve essere presentato come un elemento di un elenco numerato (`enumerate`). La definizione deve seguire il formato: `\textbf{Definizione [Numero della Definizione]:} Definire [Concetto da Definire].`
+                    * **Domande a Risposta Aperta:** Utilizza una sezione intitolata `\section*{Domande a Risposta Aperta}`. Ogni domanda deve essere presentata come un elemento di un elenco numerato (`enumerate`). Il testo della domanda deve seguire il formato: `\textbf{Domanda [Numero]:} [Testo della domanda].`
                     * **Esercizi Originali:** Utilizza una sezione intitolata `\section*{Esercizi Originali}`. Ogni esercizio deve essere presentato come un elemento di un elenco numerato (`enumerate`). Il testo dell'esercizio deve seguire il formato: `\textbf{Esercizio [Numero dell'Esercizio]:} [Testo completo dell'esercizio generato dall'AI se mancante o estratto].`
                     * **Esercizi Generati dall'AI:** Utilizza una sezione intitolata `\section*{Esercizi Generati dall'AI}`. Ogni esercizio generato deve essere un elemento di un elenco numerato (`enumerate`). Il formato deve essere:
                         ```latex
@@ -112,7 +119,7 @@ class PromptsForGemini:
                             \item [Testo del secondo esercizio generato.]
                             \item [Testo del terzo esercizio generato.]
                             ...
-                            \item [Testo dell'n-esimo esecizio generato.]
+                            \item [Testo dell'n-esimo esercizio generato.]
                         \end{enumerate}
                         ```
                 * Mantieni la formattazione originale del testo estratto:
