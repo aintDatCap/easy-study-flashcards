@@ -8,12 +8,17 @@ from google import genai
 from google.genai import types
 from pypdf import PdfReader
 
-from study_flashcards_from_pdf.gemini.models import BookStructure, ChapterInfo, ChaptersOnly
+from study_flashcards_from_pdf.gemini.models import (
+    BookStructure,
+    ChapterInfo,
+    ChaptersOnly,
+)
 from study_flashcards_from_pdf.gemini.prompts import PromptsForGemini
 from study_flashcards_from_pdf.utils.colors import Colors
 
 from study_flashcards_from_pdf.pdf_processing.core import PDFProcessor
 from study_flashcards_from_pdf.utils.latex import fix_common_generated_latex_erros
+from loguru import logger
 
 
 def get_chapters_from_gemini(
@@ -297,7 +302,6 @@ def process_pdfs_with_gemini_sdk(
                     prompt_to_send = (
                         PromptsForGemini.get_prompt_to_elaborate_single_pdf(
                             lang=lang,
-                            subject_matter=subject_matter,  # Pass subject_matter
                         )
                     )
                     contents_to_send = [original_pdf_part, prompt_to_send]
@@ -321,8 +325,12 @@ def process_pdfs_with_gemini_sdk(
                     model=model_name,
                     contents=contents_to_send,
                 )
-                generated_text = gemini_response.text
 
+                if gemini_response.text is None:
+                    logger.error("Gemini didn't respond with any text")
+                    continue
+
+                generated_text = gemini_response.text
                 generated_text = fix_common_generated_latex_erros(generated_text)
 
                 if not generated_text.strip().startswith("\\documentclass"):
@@ -335,7 +343,7 @@ def process_pdfs_with_gemini_sdk(
                     continue
 
                 is_valid: bool
-                error_msg: Optional[str]
+                error_msg: str
                 is_valid, error_msg = PDFProcessor.validate_and_compile_latex_to_pdf(
                     generated_text, result_folder_path, output_file_name_base
                 )
@@ -347,10 +355,10 @@ def process_pdfs_with_gemini_sdk(
                     )
                 else:
                     if error_msg == "xelatex_not_found":
-                        print(
-                            f"{Colors.WARNING}Cannot validate LaTeX: xelatex not found. Saving generated file but no PDF conversion.{Colors.ENDC}"
+                        logger.warning(
+                            "Cannot validate LaTeX: xelatex not found. Saving generated file but no PDF conversion."
                         )
-                        latex_is_valid = True  # Consider "valid" in the sense that we won't try to correct if xelatex is missing
+                        exit()
                     else:
                         last_error_message = error_msg
                         num_retries += 1
@@ -358,10 +366,9 @@ def process_pdfs_with_gemini_sdk(
                             f"{Colors.FAIL}Generated LaTeX code for '{pdf_file}' is NOT valid. Attempting correction ({num_retries}/{MAX_RETRIES})...{Colors.ENDC}"
                         )
                         time.sleep(2)
-
             except Exception as e:
-                print(
-                    f"{Colors.FAIL}Error processing '{pdf_file}' with Gemini: {e}{Colors.ENDC}"
+                logger.error(
+                    f"Error processing '{pdf_file}' with Gemini: {e}"
                 )
                 last_error_message = f"Generic error during generation/compilation: {e}"
                 num_retries += 1

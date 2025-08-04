@@ -55,7 +55,7 @@ class PDFProcessor:
     @staticmethod
     def validate_and_compile_latex_to_pdf(
         latex_content: str, output_directory: str, output_file_name_base: str
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> Tuple[bool, str]:
         """
         Saves the LaTeX content to a temporary file and attempts to compile it with xelatex.
         If successful, it converts to PDF and returns (True, None).
@@ -84,7 +84,7 @@ class PDFProcessor:
             temp_file_path,
         ]
 
-        error_message: Optional[str] = None
+        error_message: str = ""
         try:
             result: subprocess.CompletedProcess = subprocess.run(
                 compile_command,
@@ -124,7 +124,7 @@ class PDFProcessor:
                 print(
                     f"{Colors.OKGREEN}Compilazione LaTeX di '{temp_file_name}' e creazione PDF riuscita.{Colors.ENDC}"
                 )
-                return True, None
+                return True, ""
         except FileNotFoundError:
             print(
                 f"{Colors.FAIL}Errore: xelatex non trovato. Assicurati che un ambiente LaTeX (es. TeX Live, MiKTeX) sia installato e nel PATH.{Colors.ENDC}"

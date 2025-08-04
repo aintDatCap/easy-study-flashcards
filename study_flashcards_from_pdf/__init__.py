@@ -5,6 +5,7 @@ from typing import List, Optional
 from study_flashcards_from_pdf.pdf_processing.core import PDFProcessor
 from study_flashcards_from_pdf.gemini.client import get_chapters_from_gemini, process_pdfs_with_gemini_sdk
 from study_flashcards_from_pdf.gemini.models import ChapterInfo
+from study_flashcards_from_pdf.pdf_processing.splitter import split_pdf_by_chapters
 from study_flashcards_from_pdf.utils.colors import Colors # Assuming pdf_processing/core.py
 
 if __name__ == "__main__":
@@ -71,7 +72,7 @@ if __name__ == "__main__":
                 output_chapter_folder: str = os.path.join(
                     pdf_folder, f"{os.path.splitext(pdf_file)[0]}_chapters"
                 )
-                PDFProcessor.split_pdf_by_chapters(
+                split_pdf_by_chapters(
                     full_pdf_path,
                     chapters_info,
                     first_numbered_page,
