@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "study-flashcards-from-pdf"
+version = "0.1.0"
+description = ""
+authors = ["aintDatCap <default.pentagon042@passinbox.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<=3.13.5"
+pypdf = "^5.9.0"
+google-genai = "^1.28.0"
+pyinstaller = "^6.15.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
