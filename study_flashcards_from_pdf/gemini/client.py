@@ -1,11 +1,10 @@
-# client.py
 import os
 import pathlib
 import time
 from io import BytesIO
 from typing import List, Optional
 from google import genai
-from google.genai import types
+from google.genai.types import GenerateContentResponse, Part
 from pypdf import PdfReader
 
 from study_flashcards_from_pdf.gemini.models import (
@@ -14,18 +13,70 @@ from study_flashcards_from_pdf.gemini.models import (
     ChaptersOnly,
 )
 from study_flashcards_from_pdf.gemini.prompts import PromptsForGemini
+from study_flashcards_from_pdf.utils import fix_common_generated_latex_erros
 from study_flashcards_from_pdf.utils.colors import Colors
 
 from study_flashcards_from_pdf.pdf_processing.core import PDFProcessor
-from study_flashcards_from_pdf.utils.latex import fix_common_generated_latex_erros
 from loguru import logger
+
+
+class GeminiClientManager(genai.Client):
+    """
+    A class that extends the Gemini client to manage API calls
+    and enforce rate limits.
+    """
+    request_timestamps: list[float]
+    __MAX_REQUESTS_PER_MINUTE: int = 10
+    __TIME_WINDOW_SECONDS: int = 60
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.request_timestamps = []
+
+    def _wait_for_rate_limit(self):
+        """
+        Internal method to enforce the API request rate limit.
+        """
+        current_time: float = time.time()
+        # Filter out timestamps older than the time window
+        self.request_timestamps = [
+            ts for ts in self.request_timestamps if current_time - ts < self.__TIME_WINDOW_SECONDS
+        ]
+
+        if len(self.request_timestamps) >= self.__MAX_REQUESTS_PER_MINUTE:
+            time_to_wait: float = (
+                self.request_timestamps[0] + self.__TIME_WINDOW_SECONDS - current_time
+            )
+            if time_to_wait > 0:
+                print(
+                    f"{Colors.WARNING}Request limit reached. Waiting for {time_to_wait:.2f} seconds...{Colors.ENDC}"
+                )
+                time.sleep(time_to_wait)
+                # After waiting, update the current time and filter timestamps again
+                current_time = time.time()
+                self.request_timestamps = [
+                    ts for ts in self.request_timestamps if current_time - ts < self.__TIME_WINDOW_SECONDS
+                ]
+    
+    def generate_content_with_rate_limit(self, **kwargs) -> GenerateContentResponse:
+        """
+        Wrapper around the generate_content method that respects the rate limit.
+        """
+        self._wait_for_rate_limit()
+        
+        # Make the API call
+        response = self.models.generate_content(**kwargs)
+        
+        # Record the timestamp of the new request
+        self.request_timestamps.append(time.time())
+        return response
 
 
 def get_chapters_from_gemini(
     pdf_path: pathlib.Path,
     model_name_chapters: str,  # Model for chapters (e.g., Gemini 1.5 Pro)
     model_name_physical_page: str,  # Model for physical page (e.g., Gemini 1.5 Flash)
-    client: genai.Client,
+    client: GeminiClientManager,
     lang: str,
     pages_to_process_chapters: int = 10,
     pages_to_process_physical_page: int = 25,
@@ -35,6 +86,10 @@ def get_chapters_from_gemini(
     processing only a subset of initial PDF pages.
     Returns a BookStructure object.
     """
+
+    assert pages_to_process_chapters > 0, "pages_to_process_chapters should be bigger than 0"
+    assert pages_to_process_physical_page > 0, "pages_to_process_physical_page should be bigger than 0"
+
     print(
         f"\n--- {Colors.OKBLUE}Starting chapter and physical page analysis for '{pdf_path.name}'{Colors.ENDC} ---"
     )
@@ -43,14 +98,10 @@ def get_chapters_from_gemini(
     total_pdf_pages: int = len(reader.pages)
 
     if total_pdf_pages == 0:
-        print(
-            f"{Colors.WARNING}Warning: PDF '{pdf_path.name}' contains no pages.{Colors.ENDC}"
+        logger.warning(
+            f"PDF file '{pdf_path.name}' contains no pages."
         )
         return None
-
-    requests_timestamps: List[float] = []
-    MAX_REQUESTS_PER_MINUTE: int = 10
-    TIME_WINDOW_SECONDS: int = 60
 
     chapters_info: Optional[List[ChapterInfo]] = None
     first_chapter_physical_page: Optional[int] = None
@@ -85,25 +136,11 @@ def get_chapters_from_gemini(
         f"{Colors.OKCYAN}Sending first {num_pages_to_extract_chapters} pages to '{model_name_chapters}' for chapter extraction...{Colors.ENDC}"
     )
     try:
-        current_time: float = time.time()
-        requests_timestamps = [
-            ts for ts in requests_timestamps if current_time - ts < TIME_WINDOW_SECONDS
-        ]
-        if len(requests_timestamps) >= MAX_REQUESTS_PER_MINUTE:
-            time_to_wait: float = (
-                requests_timestamps[0] + TIME_WINDOW_SECONDS - current_time
-            )
-            if time_to_wait > 0:
-                print(
-                    f"{Colors.WARNING}Request limit reached. Waiting for {time_to_wait:.2f} seconds...{Colors.ENDC}"
-                )
-                time.sleep(time_to_wait)
-
-        gemini_response_chapters: types.GenerateContentResponse = (
-            client.models.generate_content(
+        gemini_response_chapters: GenerateContentResponse = (
+            client.generate_content_with_rate_limit(
                 model=model_name_chapters,
                 contents=[
-                    types.Part.from_bytes(
+                    Part.from_bytes(
                         data=sub_pdf_bytes_chapters.getvalue(),
                         mime_type="application/pdf",
                     ),
@@ -117,7 +154,6 @@ def get_chapters_from_gemini(
         )
         chapters_only: ChaptersOnly = gemini_response_chapters.parsed  # type: ignore
         chapters_info = chapters_only.chapters
-        requests_timestamps.append(time.time())
         print(
             f"{Colors.OKGREEN}Chapter information successfully extracted from '{model_name_chapters}'.{Colors.ENDC}"
         )
@@ -125,7 +161,7 @@ def get_chapters_from_gemini(
         print(
             f"{Colors.FAIL}Error getting chapters from '{model_name_chapters}': {e}{Colors.ENDC}"
         )
-        if hasattr(gemini_response_chapters, "text"):  # type: ignore
+        if 'gemini_response_chapters' in locals() and hasattr(gemini_response_chapters, "text"):  # type: ignore
             print(f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_chapters.text}{Colors.ENDC}")  # type: ignore
         return None
 
@@ -137,25 +173,11 @@ def get_chapters_from_gemini(
         f"{Colors.OKCYAN}Sending first {num_pages_to_extract_physical_page} pages to '{model_name_physical_page}' for first chapter physical page extraction...{Colors.ENDC}"
     )
     try:
-        current_time: float = time.time()
-        requests_timestamps = [
-            ts for ts in requests_timestamps if current_time - ts < TIME_WINDOW_SECONDS
-        ]
-        if len(requests_timestamps) >= MAX_REQUESTS_PER_MINUTE:
-            time_to_wait: float = (
-                requests_timestamps[0] + TIME_WINDOW_SECONDS - current_time
-            )
-            if time_to_wait > 0:
-                print(
-                    f"{Colors.WARNING}Request limit reached. Waiting for {time_to_wait:.2f} seconds...{Colors.ENDC}"
-                )
-                time.sleep(time_to_wait)
-
-        gemini_response_physical_page: types.GenerateContentResponse = (
-            client.models.generate_content(
+        gemini_response_physical_page: GenerateContentResponse = (
+            client.generate_content_with_rate_limit(
                 model=model_name_physical_page,
                 contents=[
-                    types.Part.from_bytes(
+                    Part.from_bytes(
                         data=sub_pdf_bytes_physical_page.getvalue(),
                         mime_type="application/pdf",
                     ),
@@ -167,6 +189,7 @@ def get_chapters_from_gemini(
             )
         )
         if gemini_response_physical_page.text is None:
+            print(f"{Colors.FAIL}Error: Gemini model '{model_name_physical_page}' returned no text response.{Colors.ENDC}")
             return None
 
         # Try to convert the response to an integer
@@ -176,11 +199,10 @@ def get_chapters_from_gemini(
             )
         except ValueError:
             print(
-                f"{Colors.FAIL}Error: Gemini 2.5 response for physical page is not a valid integer: '{gemini_response_physical_page.text.strip()}'{Colors.ENDC}"
+                f"{Colors.FAIL}Error: Gemini response for physical page is not a valid integer: '{gemini_response_physical_page.text.strip()}'{Colors.ENDC}"
             )
             return None
-
-        requests_timestamps.append(time.time())
+        
         print(
             f"{Colors.OKGREEN}First chapter physical page successfully extracted from '{model_name_physical_page}'.{Colors.ENDC}"
         )
@@ -188,7 +210,7 @@ def get_chapters_from_gemini(
         print(
             f"{Colors.FAIL}Error getting the first chapter's physical page from '{model_name_physical_page}': {e}{Colors.ENDC}"
         )
-        if hasattr(gemini_response_physical_page, "text"):  # type: ignore
+        if 'gemini_response_physical_page' in locals() and hasattr(gemini_response_physical_page, "text"):  # type: ignore
             print(f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_physical_page.text}{Colors.ENDC}")  # type: ignore
         return None
 
@@ -203,7 +225,7 @@ def get_chapters_from_gemini(
 def process_pdfs_with_gemini_sdk(
     folder_path: str,
     model_name: str,
-    client: genai.Client,
+    client: GeminiClientManager,
     lang: str,
     subject_matter: str,  # Added subject_matter
 ) -> None:
@@ -239,9 +261,6 @@ def process_pdfs_with_gemini_sdk(
         f"{Colors.OKCYAN}Found {len(pdf_files)} PDF files in folder '{folder_path}'.{Colors.ENDC}"
     )
 
-    requests_timestamps: List[float] = []
-    MAX_REQUESTS_PER_MINUTE: int = 10
-    TIME_WINDOW_SECONDS: int = 60
     MAX_RETRIES: int = 3
 
     for pdf_file in pdf_files:
@@ -253,7 +272,7 @@ def process_pdfs_with_gemini_sdk(
 
         # Make sure to read bytes only once for the original PDF part
         try:
-            original_pdf_part: types.Part = types.Part.from_bytes(
+            original_pdf_part: Part = Part.from_bytes(
                 data=pdf_path.read_bytes(), mime_type="application/pdf"
             )
         except Exception as e:
@@ -268,41 +287,17 @@ def process_pdfs_with_gemini_sdk(
         last_error_message: str = ""
 
         while num_retries <= MAX_RETRIES and not latex_is_valid:
-            current_time: float = time.time()
-            requests_timestamps = [
-                ts
-                for ts in requests_timestamps
-                if current_time - ts < TIME_WINDOW_SECONDS
-            ]
-
-            if len(requests_timestamps) >= MAX_REQUESTS_PER_MINUTE:
-                time_to_wait: float = (
-                    requests_timestamps[0] + TIME_WINDOW_SECONDS - current_time
-                )
-                if time_to_wait > 0:
-                    print(
-                        f"{Colors.WARNING}Request limit reached. Waiting for {time_to_wait:.2f} seconds...{Colors.ENDC}"
-                    )
-                    time.sleep(time_to_wait)
-                current_time = time.time()
-                requests_timestamps = [
-                    ts
-                    for ts in requests_timestamps
-                    if current_time - ts < TIME_WINDOW_SECONDS
-                ]
-
             try:
                 prompt_to_send: str
-                contents_to_send: List[types.Part | str]
+                contents_to_send: List[Part | str]
 
                 if num_retries == 0:
                     print(
                         f"\n{Colors.OKCYAN}Initial invocation of Gemini model '{model_name}' for '{pdf_file}'...{Colors.ENDC}"
                     )
-                    prompt_to_send = (
-                        PromptsForGemini.get_prompt_to_elaborate_single_pdf(
-                            lang=lang,
-                        )
+                    prompt_to_send = PromptsForGemini.get_prompt_to_elaborate_single_pdf(
+                        lang=lang,
+                        subject_matter=subject_matter  # Add this parameter
                     )
                     contents_to_send = [original_pdf_part, prompt_to_send]
                 else:
@@ -321,7 +316,7 @@ def process_pdfs_with_gemini_sdk(
                         correction_prompt,
                     ]
 
-                gemini_response = client.models.generate_content(
+                gemini_response = client.generate_content_with_rate_limit(
                     model=model_name,
                     contents=contents_to_send,
                 )
@@ -379,8 +374,6 @@ def process_pdfs_with_gemini_sdk(
         print(
             f"{Colors.HEADER}Final output (after {num_retries} attempts) saved to: {output_tex_file_path}{Colors.ENDC}"
         )
-
-        requests_timestamps.append(time.time())
 
     print(
         f"\n--- {Colors.OKBLUE}PDF processing with Gemini SDK completed.{Colors.ENDC} ---"

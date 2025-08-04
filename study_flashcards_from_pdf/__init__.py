@@ -1,14 +1,19 @@
 import os
 import pathlib
-from google import genai
 from typing import List, Optional
+
+from loguru import logger
 from study_flashcards_from_pdf.pdf_processing.core import PDFProcessor
-from study_flashcards_from_pdf.gemini.client import get_chapters_from_gemini, process_pdfs_with_gemini_sdk
+from study_flashcards_from_pdf.gemini.client import GeminiClientManager, get_chapters_from_gemini, process_pdfs_with_gemini_sdk
 from study_flashcards_from_pdf.gemini.models import ChapterInfo
 from study_flashcards_from_pdf.pdf_processing.splitter import split_pdf_by_chapters
+from study_flashcards_from_pdf.utils import get_xelatex_path
 from study_flashcards_from_pdf.utils.colors import Colors # Assuming pdf_processing/core.py
 
 if __name__ == "__main__":
+    
+    get_xelatex_path() # checks if xelatex is available
+
     pdf_folder: str = "."
 
     gemini_model_1_5: str = "gemini-1.5-flash"
@@ -21,7 +26,7 @@ if __name__ == "__main__":
         )
         exit()
 
-    gemini_client: genai.Client = genai.Client(api_key=api_key)
+    gemini_client: GeminiClientManager = GeminiClientManager(api_key=api_key)
 
     PAGES_TO_ANALYZE_FOR_CHAPTERS: int = 10
     PAGES_TO_ANALYZE_FOR_FIRST_CHAPTER_PHYSICAL_PAGE: int = 25
@@ -65,9 +70,7 @@ if __name__ == "__main__":
                     book_structure.first_chapter_physical_page
                 )
 
-                print(
-                    f"{Colors.OKGREEN}La pagina del primo capitolo del libro si trova alla pagina fisica {first_numbered_page} del PDF '{pdf_file}'.{Colors.ENDC}"
-                )
+                logger.info(f"The first chapter starts at the index {first_numbered_page} of the PDF file")
 
                 output_chapter_folder: str = os.path.join(
                     pdf_folder, f"{os.path.splitext(pdf_file)[0]}_chapters"

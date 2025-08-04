@@ -1,1 +1,0 @@
-poetry run pyinstaller --onefile study_flashcards_from_pdf/__init__.py -n Study_flashcards_from_pdf

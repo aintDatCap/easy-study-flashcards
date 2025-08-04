@@ -5,7 +5,9 @@ import subprocess
 from typing import List, Optional, Tuple
 
 from pypdf import PdfReader, PdfWriter
+from loguru import logger
 
+from study_flashcards_from_pdf.utils import get_xelatex_path
 from study_flashcards_from_pdf.utils.colors import Colors
 
 
@@ -74,9 +76,11 @@ class PDFProcessor:
             f"\n{Colors.OKCYAN}Tentativo di compilazione LaTeX e conversione PDF per '{temp_file_name}'...{Colors.ENDC}"
         )
 
+        xelatex_exe = get_xelatex_path()
+
         # Command for xelatex to compile and generate PDF
         compile_command: List[str] = [
-            "xelatex",
+            xelatex_exe,
             "-interaction=nonstopmode",
             "-c-style-errors",
             "-output-directory",
@@ -95,8 +99,8 @@ class PDFProcessor:
             )
 
             if result.returncode != 0:
-                print(
-                    f"{Colors.FAIL}ERRORE di compilazione LaTeX per '{temp_file_name}'.{Colors.ENDC}"
+                logger.error(
+                    f"ERRORE di compilazione LaTeX per '{temp_file_name}'."
                 )
                 if os.path.exists(temp_log_file):
                     with open(
@@ -115,9 +119,10 @@ class PDFProcessor:
                         if error_lines:
                             error_message = "\n".join(error_lines[:10])
                         else:
-                            error_message = result.stderr + "\n" + result.stdout[-500:]
+                            error_message = result.stderr + "\n" + result.stdout
                 if not error_message:
-                    error_message = result.stderr + "\n" + result.stdout[-500:]
+                    error_message = result.stderr + "\n" + result.stdout
+                    
                 print(f"{Colors.FAIL}Dettagli errore:\n{error_message}{Colors.ENDC}")
                 return False, error_message
             else:
