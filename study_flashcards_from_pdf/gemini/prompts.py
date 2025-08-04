@@ -1,38 +1,39 @@
-
-class PromptsForGemini():
-
-    @staticmethod
-    def get_prompt_chapters_pages(lang:str, pages_to_scan:int) -> str:
-        assert(lang in PromptsForGemini.prompts)
-
-        return PromptsForGemini.prompts[lang]["prompt_chapters_pages"].format(pages_to_scan=pages_to_scan)
-    
-    @staticmethod
-    def get_prompt_first_chapter_physical_page(lang:str, pages_to_scan:int) -> str:
-        assert(lang in PromptsForGemini.prompts)
-
-        return PromptsForGemini.prompts[lang]["prompt_first_chapter_physical_page"].format(pages_to_scan=pages_to_scan);
+class PromptsForGemini:
 
     @staticmethod
-    def get_prompt_to_elaborate_single_pdf(lang:str) -> str:
-        assert(lang in PromptsForGemini.prompts)
+    def get_prompt_chapters_pages(lang: str, pages_to_scan: int) -> str:
+        assert lang in PromptsForGemini.prompts
+
+        return PromptsForGemini.prompts[lang]["prompt_chapters_pages"].format(
+            pages_to_scan=pages_to_scan
+        )
+
+    @staticmethod
+    def get_prompt_first_chapter_physical_page(lang: str, pages_to_scan: int) -> str:
+        assert lang in PromptsForGemini.prompts
+
+        return PromptsForGemini.prompts[lang][
+            "prompt_first_chapter_physical_page"
+        ].format(pages_to_scan=pages_to_scan)
+
+    @staticmethod
+    def get_prompt_to_elaborate_single_pdf(lang: str) -> str:
+        assert lang in PromptsForGemini.prompts
 
         return PromptsForGemini.prompts[lang]["prompt_elaborate_single_pdf"]
-    
+
     @staticmethod
-    def get_prompt_for_error_correction(lang:str, error_message:str) ->str:
-        assert(lang in PromptsForGemini.prompts)
+    def get_prompt_for_error_correction(lang: str, error_message: str) -> str:
+        assert lang in PromptsForGemini.prompts
 
-        return PromptsForGemini.prompts[lang]["prompt_error_correction"].format(error_message=error_message)
+        return PromptsForGemini.prompts[lang]["prompt_error_correction"].format(
+            error_message=error_message
+        )
 
-    
     prompts: dict[str, dict[str, str]] = {
-        "en": {
-            "prompt_chapters_pages" : ""
-        },
-
+        "en": {"prompt_chapters_pages": ""},
         "it": {
-            "prompt_chapters_pages" : """
+            "prompt_chapters_pages": """
                 Analizza il PDF allegato, che è un libro di testo. Ho estratto solo le prime {pages_to_scan} pagine del documento originale.
 
                 Il tuo compito è identificare e elencare *esclusivamente* i capitoli principali che iniziano con una numerazione chiara,
@@ -45,8 +46,6 @@ class PromptsForGemini():
                 Se un indice è presente nelle pagine estratte, prioritizza l'estrazione delle informazioni da esso.
                 Assicurati che l'output aderisca rigorosamente al formato JSON specificato.
                 """,
-
-
             "prompt_first_chapter_physical_page": """
                 Analizza il PDF allegato, che è un un libro di testo. Ho estratto solo le prime {pages_to_scan} pagine del documento originale.
 
@@ -55,7 +54,6 @@ class PromptsForGemini():
                 Ad esempio, se il primo capitolo si trova nella pagina fisica 8 del PDF, devi restituire 8.
                 La tua risposta deve essere *esclusivamente* il numero intero della pagina fisica. Non aggiungere alcun testo aggiuntivo, spiegazione o formattazione.
             """,
-
             "prompt_elaborate_single_pdf": r"""
                 **Ruolo:** Sei un assistente AI esperto nell'elaborazione di documenti accademici. La tua specializzazione è l'analisi e la ristrutturazione di contenuti tecnici, in particolare nel campo dell'algebra lineare.
 
@@ -126,7 +124,6 @@ class PromptsForGemini():
                 * Alla fine del documento, chiudi l'ambiente `document` con `\\end{document}`.
                 * **[REGOLA CRITICA]** La tua risposta deve contenere *esclusivamente* il contenuto LaTeX. Non includere alcuna frase introduttiva, di saluto o di spiegazione (es. "Ecco l'output...", "Certo, ecco le domande...", ecc.). La tua risposta deve iniziare direttamente con `\documentclass{article}`.
             """,
-
             "prompt_error_correction": """
                 Il codice LaTeX che hai generato in precedenza per il documento è risultato non valido durante la compilazione.
                 Si sono verificati i seguenti errori:
@@ -150,7 +147,6 @@ class PromptsForGemini():
 
                 Forniscimi una versione valida e compilabile del codice LaTeX.
                 Mantieni esattamente il formato LaTeX richiesto nel prompt originale (senza introduzioni, saluti o spiegazioni, iniziando direttamente con `\\documentclass{article}`).
-            """ 
-    }
-        
+            """,
+        },
     }
