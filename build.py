@@ -4,13 +4,9 @@ import subprocess
 
 def main():
 
-    pyinstaller_executable = shutil.which("pyinstaller", path=".venv/Scripts/")
-    if not pyinstaller_executable:
-        raise RuntimeError("PyInstaller not found in virtual environment")
-
     subprocess.run(
         [   
-            pyinstaller_executable,
+            "pyinstaller",
             "--onefile",
             "study_flashcards_from_pdf/__init__.py",
             "--name",
