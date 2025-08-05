@@ -7,8 +7,9 @@ from typing import List, Optional, Tuple
 from pypdf import PdfReader, PdfWriter
 from loguru import logger
 
-from study_flashcards_from_pdf.utils import get_xelatex_path
+from study_flashcards_from_pdf.utils.latex import get_xelatex_path
 from study_flashcards_from_pdf.utils.colors import Colors
+from study_flashcards_from_pdf.utils.localization import localizer as _
 
 
 class PDFProcessor:
@@ -17,8 +18,8 @@ class PDFProcessor:
         pdf_path: pathlib.Path, start_page_index: int, end_page_index: int
     ) -> Optional[io.BytesIO]:
         """
-        Estrae un intervallo di pagine da un PDF e le restituisce come BytesIO.
-        Le pagine sono 0-indexed per l'input (start_page_index, end_page_index).
+        Extracts a range of pages from a PDF and returns them as BytesIO.
+        Pages are 0-indexed for input (start_page_index, end_page_index).
         """
         try:
             reader: PdfReader = PdfReader(pdf_path)
@@ -29,8 +30,13 @@ class PDFProcessor:
                 or end_page_index < start_page_index
                 or start_page_index >= total_pdf_pages
             ):
-                print(
-                    f"{Colors.FAIL}Errore: Indici di pagina non validi per l'estrazione. Inizio: {start_page_index}, Fine: {end_page_index}, Totale pagine: {total_pdf_pages}{Colors.ENDC}"
+                logger.error(
+                    _.get_string(
+                        "pdf_invalid_page_indices",
+                        start=start_page_index,
+                        end=end_page_index,
+                        total=total_pdf_pages
+                    )
                 )
                 return None
 
@@ -39,8 +45,12 @@ class PDFProcessor:
                 writer.add_page(reader.pages[i])
 
             if len(writer.pages) == 0:
-                print(
-                    f"{Colors.WARNING}Nessuna pagina estratta tra gli indici {start_page_index} e {end_page_index}.{Colors.ENDC}"
+                logger.error(
+                    _.get_string(
+                        "pdf_no_page_extracted_warning",
+                        start_page_index=start_page_index,
+                        end_page_index=end_page_index
+                    )
                 )
                 return None
 
@@ -49,8 +59,8 @@ class PDFProcessor:
             buffer.seek(0)
             return buffer
         except Exception as e:
-            print(
-                f"{Colors.FAIL}Errore durante l'estrazione delle pagine PDF: {e}{Colors.ENDC}"
+            logger.error(
+                _.get_string("pdf_pages_extraction_error", error=str(e))
             )
             return None
 
@@ -60,7 +70,7 @@ class PDFProcessor:
     ) -> Tuple[bool, str]:
         """
         Saves the LaTeX content to a temporary file and attempts to compile it with xelatex.
-        If successful, it converts to PDF and returns (True, None).
+        If successful, it converts to PDF and returns (True, "").
         If compilation fails, it returns (False, error_message).
         """
         temp_file_name: str = output_file_name_base + ".tex"
@@ -72,8 +82,8 @@ class PDFProcessor:
         with open(temp_file_path, "w", encoding="utf-8") as f:
             f.write(latex_content)
 
-        print(
-            f"\n{Colors.OKCYAN}Tentativo di compilazione LaTeX e conversione PDF per '{temp_file_name}'...{Colors.ENDC}"
+        logger.info(
+            _.get_string('latex_compilation_attempt', filename=temp_file_name)
         )
 
         xelatex_exe = get_xelatex_path()
@@ -100,7 +110,7 @@ class PDFProcessor:
 
             if result.returncode != 0:
                 logger.error(
-                    f"ERRORE di compilazione LaTeX per '{temp_file_name}'."
+                    _.get_string('latex_compilation_error', filename=temp_file_name)
                 )
                 if os.path.exists(temp_log_file):
                     with open(
@@ -122,27 +132,24 @@ class PDFProcessor:
                             error_message = result.stderr + "\n" + result.stdout
                 if not error_message:
                     error_message = result.stderr + "\n" + result.stdout
-                    
-                print(f"{Colors.FAIL}Dettagli errore:\n{error_message}{Colors.ENDC}")
+
+                logger.error(
+                    _.get_string('latex_compilation_error_details', message=error_message)
+                )
                 return False, error_message
             else:
-                print(
-                    f"{Colors.OKGREEN}Compilazione LaTeX di '{temp_file_name}' e creazione PDF riuscita.{Colors.ENDC}"
+                logger.success(
+                    _.get_string('latex_compilation_success', filename=temp_file_name)
                 )
                 return True, ""
         except FileNotFoundError:
-            print(
-                f"{Colors.FAIL}Errore: xelatex non trovato. Assicurati che un ambiente LaTeX (es. TeX Live, MiKTeX) sia installato e nel PATH.{Colors.ENDC}"
-            )
-            return (
-                False,
-                "xelatex_not_found",
-            )
+            logger.error(_.get_string('latex_not_found'))
+            return False, "xelatex_not_found"
         except Exception as e:
-            print(
-                f"{Colors.FAIL}Si è verificato un errore inatteso durante la compilazione di '{temp_file_name}': {e}{Colors.ENDC}"
+            logger.error(
+                _.get_string('pdf_unexpected_error', filename=temp_file_name, error=str(e))
             )
-            return False, f"Errore inatteso: {e}"
+            return False, f"Unexpected error: {e}"
         finally:
             # Clean up temporary files except the final PDF and tex file
             for ext in [".aux", ".log", ".out", ".fls", ".fdb_latexmk"]:

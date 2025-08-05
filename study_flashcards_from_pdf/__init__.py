@@ -7,11 +7,11 @@ from study_flashcards_from_pdf.pdf_processing.core import PDFProcessor
 from study_flashcards_from_pdf.gemini.client import GeminiClientManager, get_chapters_from_gemini, process_pdfs_with_gemini_sdk
 from study_flashcards_from_pdf.gemini.models import ChapterInfo
 from study_flashcards_from_pdf.pdf_processing.splitter import split_pdf_by_chapters
-from study_flashcards_from_pdf.utils import get_xelatex_path
-from study_flashcards_from_pdf.utils.colors import Colors # Assuming pdf_processing/core.py
+from study_flashcards_from_pdf.utils.latex import get_xelatex_path
+from study_flashcards_from_pdf.utils.colors import Colors
+from study_flashcards_from_pdf.utils.localization import localizer as _
 
 if __name__ == "__main__":
-    
     get_xelatex_path() # checks if xelatex is available
 
     pdf_folder: str = "."
@@ -21,9 +21,7 @@ if __name__ == "__main__":
 
     api_key: Optional[str] = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        print(
-            f"{Colors.FAIL}Errore: La variabile d'ambiente 'GEMINI_API_KEY' non è impostata. Si prega di impostarla prima di eseguire lo script.{Colors.ENDC}"
-        )
+        logger.error(_.get_string('api_key_missing'))
         exit()
 
     gemini_client: GeminiClientManager = GeminiClientManager(api_key=api_key)
@@ -36,18 +34,12 @@ if __name__ == "__main__":
     ]
 
     if not pdf_files_to_process:
-        print(
-            f"{Colors.WARNING}Nessun file PDF trovato nella cartella specificata per la divisione in capitoli.{Colors.ENDC}"
-        )
+        logger.warning(_.get_string('no_pdf_files', folder=pdf_folder))
     else:
-        # Ask the user for the subject matter
-        subject_matter_input: str = input(
-            f"{Colors.OKCYAN}Per quale materia vuoi generare le schede di studio? (es. 'Algebra Lineare', 'Storia Romana', 'Fisica Quantistica'): {Colors.ENDC}"
-        )
+        subject_matter_input: str = input(_.get_string('subject_prompt'))
         if not subject_matter_input.strip():
-            print(f"{Colors.WARNING}Nessuna materia specificata. Utilizzo 'materia generica'.{Colors.ENDC}")
-            subject_matter_input = "materia generica"
-
+            logger.warning(_.get_string('no_subject'))
+            subject_matter_input = _.get_string("generic_subject")
 
         for pdf_file in pdf_files_to_process:
             full_pdf_path: pathlib.Path = pathlib.Path(
@@ -59,7 +51,7 @@ if __name__ == "__main__":
                 gemini_model_1_5,
                 gemini_model_2_5,
                 gemini_client,
-                lang="it", # Assuming Italian is the desired language for prompts
+                lang=_.get_current_language().value,
                 pages_to_process_chapters=PAGES_TO_ANALYZE_FOR_CHAPTERS,
                 pages_to_process_physical_page=PAGES_TO_ANALYZE_FOR_FIRST_CHAPTER_PHYSICAL_PAGE,
             )
@@ -70,7 +62,12 @@ if __name__ == "__main__":
                     book_structure.first_chapter_physical_page
                 )
 
-                logger.info(f"The first chapter starts at the index {first_numbered_page} of the PDF file")
+                logger.info(
+                    _.get_string(
+                        'chapter_start_index',
+                        index=first_numbered_page
+                    )
+                )
 
                 output_chapter_folder: str = os.path.join(
                     pdf_folder, f"{os.path.splitext(pdf_file)[0]}_chapters"
@@ -86,12 +83,16 @@ if __name__ == "__main__":
                     output_chapter_folder,
                     gemini_model_2_5,
                     gemini_client,
-                    lang="it", 
+                    lang=_.get_current_language().value,
                     subject_matter=subject_matter_input,
                 )
             else:
-                print(
-                    f"{Colors.WARNING}Impossibile ottenere informazioni sui capitoli per '{pdf_file}'. Salto la divisione e l'elaborazione.{Colors.ENDC}"
+                logger.error(
+                    _.get_string(
+                        'chapter_info_error',
+                        model=gemini_model_1_5,
+                        error='No structure returned'
+                    )
                 )
 
-    print(f"\n{Colors.HEADER}Script completato.{Colors.ENDC}\n")
+    logger.info(_.get_string('processing_complete'))

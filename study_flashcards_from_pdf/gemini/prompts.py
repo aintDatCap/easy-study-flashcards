@@ -38,8 +38,125 @@ class PromptsForGemini:
 
         return PromptsForGemini.prompts[lang]["prompt_error_correction"].replace("**[error_message]**", error_message)
 
+    # Translated through AI, I'm way too lazy to do that by myself
     prompts: dict[str, dict[str, str]] = {
-        "en": {"prompt_chapters_pages": ""},
+        "en": {
+            "prompt_chapters_pages": """
+                Analyze the attached PDF, which is a textbook. I have extracted only the first {pages_to_scan} pages of the original document.
+
+                Your task is to identify and list *exclusively* the main chapters that begin with clear numbering,
+                such as "Chapter 1", "Chapter 2", "Unit 3", "Section 4", or similar numbered formats.
+                Do not include introductions, prefaces, indexes, bibliographies, appendices, solutions, or any other section
+                that is not an explicitly numbered chapter. For each identified chapter, return its exact title as it appears in the text and the page number where it begins,
+                as **numbered within the book** (for example, if the chapter starts on physical page 15 of the PDF but is labeled as page '1' *in the book text*, you return 1 for `start_page`).
+                Only provide chapters that begin within the first {pages_to_scan} physical pages of the PDF.
+
+                If a table of contents is present in the extracted pages, prioritize extracting information from it.
+                Make sure the output strictly adheres to the specified JSON format.
+            """,
+            "prompt_first_chapter_physical_page": """
+                Analyze the attached PDF, which is a textbook. I have extracted only the first {pages_to_scan} pages of the original document.
+
+                Your task is to identify the physical page number (1-based) of the PDF that corresponds to the beginning of the *first numbered chapter*.
+                **[CRITICAL RULE]**: Do not consider prefaces, indexes, or other introductory sections as the first chapter.
+                For example, if the first chapter is found on physical page 8 of the PDF, you should return 8.
+                Your answer must be *exclusively* the integer of the physical page. Do not add any additional text, explanation, or formatting.
+            """,
+            "prompt_elaborate_single_pdf": r""" 
+                **Role:** You are an AI assistant specialized in processing academic documents. Your expertise is in analyzing and restructuring technical content for any subject matter.
+
+                I am analyzing a PDF document containing educational material (lectures, notes, handouts) related to "**[subject]**". I need to create a structured LaTeX document that summarizes key concepts, extracts presented exercises, and generates new exercises.
+
+                1. Carefully analyze the text of the provided PDF document.
+                2. **Identify and extract the document header, if present, such as the main title, author, and date.**
+                3. **Identify and extract all theorems or principles/laws presented.** For each theorem, you must include its complete statement and, if present, its number (e.g., Theorem 1.1, Ohm's Law). **Do not provide the theorem's proof, but ask the reader to prove it.**
+                4. **Identify and extract definitions of key concepts.** For each concept, you must indicate the term to be defined, then ask the reader to provide the definition and add the definition number. **It is crucial that the order of theorems and definitions in the LaTeX document mirrors their order in the original PDF.**
+                5. **Identify and extract the presented exercises.** For each exercise, you must include the complete exercise text. **If the original exercise text is not explicitly present but is only a reference (e.g., "Exercise 1"), the AI should generate a representative exercise text based on the surrounding context or the typical problem type for that topic.** **Do not provide the exercise solution.**
+                6. **Generate 1 additional exercise for each extracted exercise.** These AI-generated exercises must require the same conceptual tools for solving as the original exercises but must present different data, contexts, or scenarios to be conceptually distinct. Ensure they are consistent with the difficulty level and topics covered in the original document.
+                7. Completely ignore:
+                    * Complete theorem proofs.
+                    * Additional comments or explanations that don't fall into the above categories (theorems, definitions, exercises).
+                    * Grading rubrics or scores.
+                    * **Complete book content or in-depth explanatory sections that are not theorems, definitions, or exercises.**
+                    * **ISBN or any other editorial data.**
+
+                * The final file must be in LaTeX format (`.tex`).
+                * **Start the file with the following LaTeX structure:**
+                    \documentclass{article}
+                    \usepackage[utf8]{inputenc}
+                    \usepackage{amsmath} % For advanced math equations
+                    \usepackage{amsfonts} % For additional math symbols
+                    \usepackage{amssymb} % For additional math symbols
+                    \usepackage{enumitem} % For customizing lists
+                    \usepackage{fancyhdr} % For headers/footers (optional, if needed)
+                    \usepackage{hyperref} % For links (optional)
+                    \usepackage{xcolor} % For colors (optional, if needed)
+                    \usepackage{courier} % For monospaced text (or other desired monospaced font)
+                    \usepackage{listings} % For code blocks and pseudocode
+                    \lstset{
+                        basicstyle=\ttfamily, % Monospaced font for code
+                        columns=fullflexible, % Adapt columns to text
+                        breaklines=true, % Break long lines
+                        frame=single, % Frame around code blocks
+                        showstringspaces=false % Don't show spaces in strings
+                        % You can add other code formatting options
+                    }
+
+                    \pagestyle{plain} % Or fancy if using fancyhdr
+
+                    \begin{document}
+                * **After `\begin{document}`, insert the extracted header, if present, formatted as follows:**
+                    * The main title using `\title{}` and `\maketitle`.
+                    * The author using `\author{}`.
+                * **Use the following sections to organize the content:**
+                    * **Extracted Content:** Use a section titled `\section*{Extracted Content}`. Within this section, list theorems and definitions in the exact order they were found in the original document.
+                        * Each theorem must be presented as an item in a numbered list (`enumerate`). The statement must follow the format: `\textbf{Theorem/Principle/Law [Number/Name]:} [Complete statement]. \par \textbf{Proof:} [Leave space for reader's proof]`
+                        * Each concept to be defined must be presented as an item in a numbered list (`enumerate`). The definition must follow the format: `\textbf{Definition [Definition Number]:} Define [Concept to be Defined].`
+                    * **Original Exercises:** Use a section titled `\section*{Original Exercises}`. Each exercise must be presented as an item in a numbered list (`enumerate`). The exercise text must follow the format: `\textbf{Exercise [Exercise Number]:} [Complete exercise text generated by AI if missing or extracted].`
+                    * **AI-Generated Exercises:** Use a section titled `\section*{AI-Generated Exercises}`. Each generated exercise must be an item in a numbered list (`enumerate`). The format must be:
+                        ```latex
+                        \begin{enumerate}
+                            \item [Text of first generated exercise.]
+                            \item [Text of second generated exercise.]
+                            \item [Text of third generated exercise.]
+                            ...
+                            \item [Text of nth generated exercise.]
+                        \end{enumerate}
+                        ```
+                * Maintain the original text formatting:
+                    * **Bold** must be `\textbf{text}`.
+                    * `monospace` for inline code must be `\texttt{code}`.
+                * For mathematical and scientific notations, use standard LaTeX formatting:
+                    * Include inline mathematical expressions within `$ $`.
+                    * Include equation blocks within `$$ $$` or environments like `equation*` or `align*`.
+                * At the end of the document, close the `document` environment with `\end{document}`.
+                * **[CRITICAL RULE]** Your response must contain *exclusively* the LaTeX content. Do not include any introductory, greeting, or explanatory phrases (e.g., "Here's the output...", "Sure, here are the questions...", etc.). Your response must start directly with `\documentclass{article}`.
+            """,
+            "prompt_error_correction": r"""
+                The LaTeX code you previously generated for the document was invalid during compilation.
+                The following errors occurred:
+                ```
+                **[error_message]**
+
+                ```
+                Please analyze these errors carefully. Your task is to **correct the LaTeX code to resolve these compilation issues**, while **faithfully maintaining the original content and structure** that you extracted from the PDF. Do not alter the meaning or formatting of theorems, definitions, and exercises.
+
+                **Critical LaTeX Rules for Correction:**
+                * **Paired Environments:** Every `\begin{environment}` must have a corresponding `\end{environment}` (e.g., `\begin{itemize}` and `\end{itemize}`, `\begin{equation}` and `\end{equation}`).
+                * **Math Delimiters:**
+                    * Inline equations: Always use single dollars `$` to start and end (e.g., `A vector $v$`).
+                    * Equation blocks (display mode): Use double dollars `$$` or specific environments like `\begin{equation}` / `\end{equation}` or `\begin{align*}` / `\end{align*}`.
+                * **Undefined Commands:** Ensure all commands (`\cmd`) and environments are defined by included packages (`amsmath`, `amsfonts`, `amssymb`, `enumitem`, `fancyhdr`, `hyperref`, `xcolor`, `courier`, `listings`). Don't introduce new commands or environments without necessary packages.
+                * **Special Characters:** LaTeX special characters (e.g., `#`, `$`, `%`, `&`, `_`, `{{`, `}}`, `~`, `^`, `\\`, `<`, `>`) must be escaped with a backslash (`\\`) if they should appear as normal text, unless used for their LaTeX purpose.
+                * **Bracket Balance:** All parentheses, square brackets, and curly braces (especially those used in LaTeX commands or environments) must be properly balanced.
+                * **Avoid `[ ]` for Inline Text:** Don't use `[` and `]` to enclose normal text unless it's an optional argument of a LaTeX command.
+                * **Non-Math Text in Math Environments:** Normal text inside math environments (`$` or `$$`) must be enclosed in `\\text{}` or `\\mbox{}` to ensure proper font formatting (e.g., `$ \\text{where} x > 0 $`).
+                * **Common Error: Missing/Wrong Curly Braces:** The most common error, especially in generated exercises, is incorrect use or missing curly braces `}`. Often, a character like `>` is used instead of `}` to close a LaTeX command or environment. Carefully check that all curly braces are present and correctly positioned.
+
+                Provide me with a valid and compilable version of the LaTeX code.
+                Maintain exactly the LaTeX format required in the original prompt (without introductions, greetings, or explanations, starting directly with `\documentclass{article}`).
+            """,
+        },
         "it": {
             "prompt_chapters_pages": """
                 Analizza il PDF allegato, che è un libro di testo. Ho estratto solo le prime {pages_to_scan} pagine del documento originale.

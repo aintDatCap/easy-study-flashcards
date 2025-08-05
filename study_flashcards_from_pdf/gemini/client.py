@@ -13,11 +13,12 @@ from study_flashcards_from_pdf.gemini.models import (
     ChaptersOnly,
 )
 from study_flashcards_from_pdf.gemini.prompts import PromptsForGemini
-from study_flashcards_from_pdf.utils import fix_common_generated_latex_erros
+from study_flashcards_from_pdf.utils.latex import fix_common_generated_latex_erros
 from study_flashcards_from_pdf.utils.colors import Colors
+from study_flashcards_from_pdf.utils.localization import localizer as _
+from loguru import logger
 
 from study_flashcards_from_pdf.pdf_processing.core import PDFProcessor
-from loguru import logger
 
 
 class GeminiClientManager(genai.Client):
@@ -48,8 +49,8 @@ class GeminiClientManager(genai.Client):
                 self.request_timestamps[0] + self.__TIME_WINDOW_SECONDS - current_time
             )
             if time_to_wait > 0:
-                print(
-                    f"{Colors.WARNING}Request limit reached. Waiting for {time_to_wait:.2f} seconds...{Colors.ENDC}"
+                logger.warning(
+                    _.get_string('rate_limit', seconds=time_to_wait)
                 )
                 time.sleep(time_to_wait)
                 # After waiting, update the current time and filter timestamps again
@@ -91,7 +92,7 @@ def get_chapters_from_gemini(
     assert pages_to_process_physical_page > 0, "pages_to_process_physical_page should be bigger than 0"
 
     print(
-        f"\n--- {Colors.OKBLUE}Starting chapter and physical page analysis for '{pdf_path.name}'{Colors.ENDC} ---"
+        f"\n--- {Colors.OKBLUE}{_.get_string('chapter_analysis_start', filename=pdf_path.name)}{Colors.ENDC} ---"
     )
 
     reader: PdfReader = PdfReader(pdf_path)
@@ -235,9 +236,7 @@ def process_pdfs_with_gemini_sdk(
     """
 
     if not os.path.isdir(folder_path):
-        print(
-            f"{Colors.FAIL}The specified folder does not exist: {folder_path}{Colors.ENDC}"
-        )
+        logger.error(_.get_string('folder_not_exist', folder=folder_path))
         return
 
     result_folder_path: str = os.path.join(folder_path, "results/")
@@ -249,16 +248,12 @@ def process_pdfs_with_gemini_sdk(
     ]
 
     if not pdf_files:
-        print(
-            f"{Colors.WARNING}No PDF files found in folder: {folder_path}{Colors.ENDC}"
-        )
+        logger.warning(_.get_string('no_pdf_files', folder=folder_path))
         return
 
-    print(
-        f"\n--- {Colors.OKBLUE}Starting PDF processing with Gemini SDK in '{folder_path}'{Colors.ENDC} ---"
-    )
-    print(
-        f"{Colors.OKCYAN}Found {len(pdf_files)} PDF files in folder '{folder_path}'.{Colors.ENDC}"
+    logger.info(_.get_string('pdf_processing_start', folder=folder_path))
+    logger.info(
+        _.get_string('pdf_files_found', count=len(pdf_files), folder=folder_path)
     )
 
     MAX_RETRIES: int = 3
@@ -276,8 +271,8 @@ def process_pdfs_with_gemini_sdk(
                 data=pdf_path.read_bytes(), mime_type="application/pdf"
             )
         except Exception as e:
-            print(
-                f"{Colors.FAIL}Error reading PDF file '{pdf_file}': {e}. Skipping this file.{Colors.ENDC}"
+            logger.warning(
+                f"Error reading PDF file '{pdf_file}': {e}. Skipping this file."
             )
             continue
 
@@ -292,8 +287,8 @@ def process_pdfs_with_gemini_sdk(
                 contents_to_send: List[Part | str]
 
                 if num_retries == 0:
-                    print(
-                        f"\n{Colors.OKCYAN}Initial invocation of Gemini model '{model_name}' for '{pdf_file}'...{Colors.ENDC}"
+                    logger.info(
+                        f"Initial invocation of Gemini model '{model_name}' for '{pdf_file}'..."
                     )
                     prompt_to_send = PromptsForGemini.get_prompt_to_elaborate_single_pdf(
                         lang=lang,
@@ -301,8 +296,8 @@ def process_pdfs_with_gemini_sdk(
                     )
                     contents_to_send = [original_pdf_part, prompt_to_send]
                 else:
-                    print(
-                        f"\n{Colors.WARNING}Attempt {num_retries}/{MAX_RETRIES}: Requesting LaTeX correction for '{pdf_file}'..."
+                    logger.info(
+                        f"Attempt {num_retries}/{MAX_RETRIES}: Requesting LaTeX correction for '{pdf_file}'..."
                     )
                     correction_prompt: str = (
                         PromptsForGemini.get_prompt_for_error_correction(

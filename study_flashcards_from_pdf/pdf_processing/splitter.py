@@ -4,6 +4,8 @@ from pypdf import PdfReader, PdfWriter
 from typing import List
 from study_flashcards_from_pdf.gemini.models import ChapterInfo
 from study_flashcards_from_pdf.utils.colors import Colors
+from study_flashcards_from_pdf.utils.localization import localizer as _
+from loguru import logger
 
 
 def split_pdf_by_chapters(
@@ -17,9 +19,7 @@ def split_pdf_by_chapters(
     logical page numbers and the physical offset of the first numbered page.
     """
     if not chapters:
-        print(
-            f"{Colors.WARNING}No chapter information available for PDF splitting.{Colors.ENDC}"
-        )
+        logger.warning(_.get_string('no_chapters'))
         return
 
     reader: PdfReader = PdfReader(pdf_path)
@@ -39,8 +39,8 @@ def split_pdf_by_chapters(
     # Create the output folder if it doesn't exist
     os.makedirs(output_folder, exist_ok=True)
 
-    print(
-        f"\n--- {Colors.OKBLUE}Splitting '{pdf_path.name}' into chapters...{Colors.ENDC} ---"
+    logger.info(
+        _.get_string('splitting_pdf', filename=pdf_path.name)
     )
 
     for i, chapter_info in enumerate(sorted_chapters):
@@ -67,8 +67,12 @@ def split_pdf_by_chapters(
             )
 
         if start_physical_page_index >= total_pages or start_physical_page_index < 0:
-            print(
-                f"{Colors.WARNING}Warning: Start page '{chapter_info.start_page}' for '{chapter_info.title}' (corresponds to physical page {start_physical_page_index + 1}) out of bounds. Skipping.{Colors.ENDC}"
+            logger.warning(
+                _.get_string(
+                    'chapter_page_out_of_bounds',
+                    title=chapter_info.title,
+                    page=start_physical_page_index + 1
+                )
             )
             continue
 
@@ -93,15 +97,20 @@ def split_pdf_by_chapters(
                 ]
             ).strip()
             safe_chapter_name = safe_chapter_name.replace(" ", "_")
-            output_filename: str = f"Capitolo_{i+1}-{safe_chapter_name}.pdf"
+            output_filename: str = f"Chapter_{i+1}-{safe_chapter_name}.pdf"
             output_filepath: str = os.path.join(output_folder, output_filename)
 
             with open(output_filepath, "wb") as output_pdf:
                 writer.write(output_pdf)
-            print(
-                f"{Colors.OKGREEN}Saved: '{output_filepath}' (Physical Pages: {start_physical_page_index + 1}-{end_physical_page_index}){Colors.ENDC}"
+            logger.success(
+                _.get_string(
+                    'chapter_saved',
+                    filepath=output_filepath,
+                    start=start_physical_page_index + 1,
+                    end=end_physical_page_index
+                )
             )
         else:
-            print(
-                f"{Colors.WARNING}No pages found for chapter '{chapter_info.title}'.{Colors.ENDC}"
+            logger.warning(
+                _.get_string('no_pages_in_chapter', title=chapter_info.title)
             )
