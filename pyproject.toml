@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "study-flashcards-from-pdf"
+name = "easy-study-flashcards"
 version = "0.1.0"
 description = ""
 authors = ["aintDatCap <default.pentagon042@passinbox.com>"]
@@ -12,6 +12,11 @@ google-genai = "^1.28.0"
 pyinstaller = "^6.15.0"
 loguru = "^0.7.3"
 
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+pytest-asyncio = "^1.1.0"
 
 [build-system]
 requires = ["poetry-core"]

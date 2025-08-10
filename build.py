@@ -8,9 +8,9 @@ def main():
         [   
             "pyinstaller",
             "--onefile",
-            "study_flashcards_from_pdf/__init__.py",
+            "easy_study_flashcards/__init__.py",
             "--name",
-            "Study_flashcards_from_pdf",
+            "Study flashcards from pdf",
         ],
         cwd=os.getcwd(),
         check=True
