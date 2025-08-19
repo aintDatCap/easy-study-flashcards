@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pypdf = ">=5.9.0"
+google-genai = ">=1.28.0"
+pyinstaller = ">=6.15.0"
+loguru = ">=0.7.3"
+stockholm = "*"
+
+[dev-packages]
+pytest = ">=8.4.1"
+pytest-cov = ">=6.2.1"
+pytest-asyncio = ">=1.1.0"
+
+[requires]
+python_version = "3.13"

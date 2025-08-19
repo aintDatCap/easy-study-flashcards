@@ -6,6 +6,7 @@ from typing import List, Optional
 from google import genai
 from google.genai.types import GenerateContentResponse, Part
 from pypdf import PdfReader
+from stockholm import Money
 
 from easy_study_flashcards.gemini.models import (
     BookStructure,
@@ -26,7 +27,9 @@ class GeminiClientManager(genai.Client):
     A class that extends the Gemini client to manage API calls
     and enforce rate limits.
     """
+
     request_timestamps: list[float]
+    total_cost: Money = Money(0)
     __MAX_REQUESTS_PER_MINUTE: int = 10
     __TIME_WINDOW_SECONDS: int = 60
 
@@ -41,7 +44,9 @@ class GeminiClientManager(genai.Client):
         current_time: float = time.time()
         # Filter out timestamps older than the time window
         self.request_timestamps = [
-            ts for ts in self.request_timestamps if current_time - ts < self.__TIME_WINDOW_SECONDS
+            ts
+            for ts in self.request_timestamps
+            if current_time - ts < self.__TIME_WINDOW_SECONDS
         ]
 
         if len(self.request_timestamps) >= self.__MAX_REQUESTS_PER_MINUTE:
@@ -49,28 +54,67 @@ class GeminiClientManager(genai.Client):
                 self.request_timestamps[0] + self.__TIME_WINDOW_SECONDS - current_time
             )
             if time_to_wait > 0:
-                logger.warning(
-                    _.get_string('rate_limit', seconds=time_to_wait)
-                )
+                logger.warning(_.get_string("rate_limit", seconds=time_to_wait))
                 time.sleep(time_to_wait)
                 # After waiting, update the current time and filter timestamps again
                 current_time = time.time()
                 self.request_timestamps = [
-                    ts for ts in self.request_timestamps if current_time - ts < self.__TIME_WINDOW_SECONDS
+                    ts
+                    for ts in self.request_timestamps
+                    if current_time - ts < self.__TIME_WINDOW_SECONDS
                 ]
-    
+
     def generate_content_with_rate_limit(self, **kwargs) -> GenerateContentResponse:
         """
         Wrapper around the generate_content method that respects the rate limit.
         """
         self._wait_for_rate_limit()
         
+        input_tokens = self.models.count_tokens(model=kwargs["model"], contents=kwargs["contents"]).total_tokens
+
         # Make the API call
         response = self.models.generate_content(**kwargs)
-        
+
+        output_tokens = response.usage_metadata.candidates_token_count if response.usage_metadata is not None else 0
+
+        self.print_generated_content_cost(input_tokens , output_tokens , kwargs["model"])
+
         # Record the timestamp of the new request
         self.request_timestamps.append(time.time())
         return response
+
+    def print_generated_content_cost(self, input_tokens, output_tokens, model_name):
+        """
+        Calculates the estimated cost of a Gemini API call.
+        Note: Pricing is subject to change. Always refer to the official documentation.
+        """
+        # Prices per 1 million tokens in USD
+        # Using example rates for a specific model (e.g., Gemini 2.5 Flash)
+        # Check the latest prices on the official Google AI for Developers site.
+        pricing = {
+            "gemini-2.5-flash": {
+                "input": 0.30,  # $0.30 per 1M input tokens
+                "output": 2.50,  # $2.50 per 1M output tokens
+            },
+            "gemini-1.5-flash": {
+                "input": 0.075,
+                "output":0.15
+            },
+        }
+
+        if model_name not in pricing:
+            return "Error: Pricing data not available for this model."
+
+        input_price = pricing[model_name]["input"]
+        output_price = pricing[model_name]["output"]
+
+        content_cost = (Money(input_tokens) / 1_000_000) * input_price + (
+            Money(output_tokens) / 1_000_000
+        ) * output_price
+
+        self.total_cost += content_cost
+
+        print(f"{Colors.BOLD}Total cost: ${content_cost.amount_as_string()}. Input tokens: {input_tokens}, output tokens: {output_tokens} {Colors.ENDC}")
 
 
 def get_chapters_from_gemini(
@@ -88,8 +132,12 @@ def get_chapters_from_gemini(
     Returns a BookStructure object.
     """
 
-    assert pages_to_process_chapters > 0, "pages_to_process_chapters should be bigger than 0"
-    assert pages_to_process_physical_page > 0, "pages_to_process_physical_page should be bigger than 0"
+    assert (
+        pages_to_process_chapters > 0
+    ), "pages_to_process_chapters should be bigger than 0"
+    assert (
+        pages_to_process_physical_page > 0
+    ), "pages_to_process_physical_page should be bigger than 0"
 
     print(
         f"\n--- {Colors.OKBLUE}{_.get_string('chapter_analysis_start', filename=pdf_path.name)}{Colors.ENDC} ---"
@@ -99,9 +147,7 @@ def get_chapters_from_gemini(
     total_pdf_pages: int = len(reader.pages)
 
     if total_pdf_pages == 0:
-        logger.warning(
-            f"PDF file '{pdf_path.name}' contains no pages."
-        )
+        logger.warning(f"PDF file '{pdf_path.name}' contains no pages.")
         return None
 
     chapters_info: Optional[List[ChapterInfo]] = None
@@ -162,7 +208,7 @@ def get_chapters_from_gemini(
         print(
             f"{Colors.FAIL}Error getting chapters from '{model_name_chapters}': {e}{Colors.ENDC}"
         )
-        if 'gemini_response_chapters' in locals() and hasattr(gemini_response_chapters, "text"):  # type: ignore
+        if "gemini_response_chapters" in locals() and hasattr(gemini_response_chapters, "text"):  # type: ignore
             print(f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_chapters.text}{Colors.ENDC}")  # type: ignore
         return None
 
@@ -190,7 +236,9 @@ def get_chapters_from_gemini(
             )
         )
         if gemini_response_physical_page.text is None:
-            print(f"{Colors.FAIL}Error: Gemini model '{model_name_physical_page}' returned no text response.{Colors.ENDC}")
+            print(
+                f"{Colors.FAIL}Error: Gemini model '{model_name_physical_page}' returned no text response.{Colors.ENDC}"
+            )
             return None
 
         # Try to convert the response to an integer
@@ -203,7 +251,7 @@ def get_chapters_from_gemini(
                 f"{Colors.FAIL}Error: Gemini response for physical page is not a valid integer: '{gemini_response_physical_page.text.strip()}'{Colors.ENDC}"
             )
             return None
-        
+
         print(
             f"{Colors.OKGREEN}First chapter physical page successfully extracted from '{model_name_physical_page}'.{Colors.ENDC}"
         )
@@ -211,7 +259,7 @@ def get_chapters_from_gemini(
         print(
             f"{Colors.FAIL}Error getting the first chapter's physical page from '{model_name_physical_page}': {e}{Colors.ENDC}"
         )
-        if 'gemini_response_physical_page' in locals() and hasattr(gemini_response_physical_page, "text"):  # type: ignore
+        if "gemini_response_physical_page" in locals() and hasattr(gemini_response_physical_page, "text"):  # type: ignore
             print(f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_physical_page.text}{Colors.ENDC}")  # type: ignore
         return None
 
@@ -236,7 +284,7 @@ def process_pdfs_with_gemini_sdk(
     """
 
     if not os.path.isdir(folder_path):
-        logger.error(_.get_string('folder_not_exist', folder=folder_path))
+        logger.error(_.get_string("folder_not_exist", folder=folder_path))
         return
 
     result_folder_path: str = os.path.join(folder_path, "results/")
@@ -248,12 +296,12 @@ def process_pdfs_with_gemini_sdk(
     ]
 
     if not pdf_files:
-        logger.warning(_.get_string('no_pdf_files', folder=folder_path))
+        logger.warning(_.get_string("no_pdf_files", folder=folder_path))
         return
 
-    logger.info(_.get_string('pdf_processing_start', folder=folder_path))
+    logger.info(_.get_string("pdf_processing_start", folder=folder_path))
     logger.info(
-        _.get_string('pdf_files_found', count=len(pdf_files), folder=folder_path)
+        _.get_string("pdf_files_found", count=len(pdf_files), folder=folder_path)
     )
 
     MAX_RETRIES: int = 3
@@ -290,9 +338,11 @@ def process_pdfs_with_gemini_sdk(
                     logger.info(
                         f"Initial invocation of Gemini model '{model_name}' for '{pdf_file}'..."
                     )
-                    prompt_to_send = PromptsForGemini.get_prompt_to_elaborate_single_pdf(
-                        lang=lang,
-                        subject_matter=subject_matter  # Add this parameter
+                    prompt_to_send = (
+                        PromptsForGemini.get_prompt_to_elaborate_single_pdf(
+                            lang=lang,
+                            subject_matter=subject_matter,  # Add this parameter
+                        )
                     )
                     contents_to_send = [original_pdf_part, prompt_to_send]
                 else:
@@ -357,9 +407,7 @@ def process_pdfs_with_gemini_sdk(
                         )
                         time.sleep(2)
             except Exception as e:
-                logger.error(
-                    f"Error processing '{pdf_file}' with Gemini: {e}"
-                )
+                logger.error(f"Error processing '{pdf_file}' with Gemini: {e}")
                 last_error_message = f"Generic error during generation/compilation: {e}"
                 num_retries += 1
                 time.sleep(2)
