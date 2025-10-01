@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 from easy_study_flashcards.utils.localization import localizer as _
 from loguru import logger
-
+import os
 
 class MikTexInstallationResult(Enum):
     OK = 1
@@ -106,13 +106,17 @@ def get_xelatex_path() -> str:
 
     if executable_path is None:
         logger.warning(_.get_string('latex_not_found'))
-        result = download_and_install_miktex()
 
-        if result != MikTexInstallationResult.OK:
-            logger.error(_.get_string('miktex_install_failed'))
-            sys.exit(1)
-            
-        executable_path = shutil.which("xelatex")
+        # if OS is windows
+        if os.name == "nt":
+            result = download_and_install_miktex()
+
+            if result != MikTexInstallationResult.OK:
+                logger.error(_.get_string('miktex_install_failed'))
+                sys.exit(1)
+                
+            executable_path = shutil.which("xelatex")
+        
         assert executable_path is not None
 
     return executable_path

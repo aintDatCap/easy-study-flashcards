@@ -8,7 +8,6 @@ from easy_study_flashcards.gemini.client import GeminiClientManager, get_chapter
 from easy_study_flashcards.gemini.models import ChapterInfo
 from easy_study_flashcards.pdf_processing.splitter import split_pdf_by_chapters
 from easy_study_flashcards.utils.latex import get_xelatex_path
-from easy_study_flashcards.utils.colors import Colors
 from easy_study_flashcards.utils.localization import localizer as _
 
 if __name__ == "__main__":
@@ -94,5 +93,5 @@ if __name__ == "__main__":
                         error='No structure returned'
                     )
                 )
-    print(f"{Colors.WARNING}Total cost for the whole conversion: ${gemini_client.total_cost.amount_as_string()} {Colors.ENDC}")
+    # print(f"{Colors.WARNING}Total cost for the whole conversion: ${gemini_client.total_cost.amount_as_string()} {Colors.ENDC}")
     logger.info(_.get_string('processing_complete'))
