@@ -20,7 +20,7 @@ from easy_study_flashcards.utils.localization import localizer as _
 from loguru import logger
 
 from easy_study_flashcards.pdf_processing.core import PDFProcessor
-
+from google.genai.errors import ClientError, ServerError
 
 class GeminiClientManager(genai.Client):
     """
@@ -72,8 +72,16 @@ class GeminiClientManager(genai.Client):
         
         input_tokens = self.models.count_tokens(model=kwargs["model"], contents=kwargs["contents"]).total_tokens
 
-        # Make the API call
-        response = self.models.generate_content(**kwargs)
+        while True:
+            try:
+                # Make the API call
+                response = self.models.generate_content(**kwargs)
+                break
+            except ServerError as err:
+                # Unavailable
+                if err.code == 503:
+                    logger.warning("Gemini server is being overused, waiting 10 seconds")
+                    time.sleep(10)
 
         output_tokens = response.usage_metadata.candidates_token_count if response.usage_metadata is not None else 0
 
@@ -123,8 +131,8 @@ def get_chapters_from_gemini(
     model_name_physical_page: str,  # Model for physical page (e.g., Gemini 1.5 Flash)
     client: GeminiClientManager,
     lang: str,
-    pages_to_process_chapters: int = 10,
-    pages_to_process_physical_page: int = 25,
+    pages_to_process_chapters: int = 30,
+    pages_to_process_physical_page: int = 40,
 ) -> Optional[BookStructure]:
     """
     Asks Gemini models to identify chapters and the physical page of the first chapter,
@@ -205,8 +213,8 @@ def get_chapters_from_gemini(
             f"{Colors.OKGREEN}Chapter information successfully extracted from '{model_name_chapters}'.{Colors.ENDC}"
         )
     except Exception as e:
-        print(
-            f"{Colors.FAIL}Error getting chapters from '{model_name_chapters}': {e}{Colors.ENDC}"
+        logger.error(
+            f"Error getting chapters from '{model_name_chapters}': {e}"
         )
         if "gemini_response_chapters" in locals() and hasattr(gemini_response_chapters, "text"):  # type: ignore
             print(f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_chapters.text}{Colors.ENDC}")  # type: ignore

@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     pdf_folder: str = "."
 
-    gemini_model_1_5: str = "gemini-1.5-flash"
+    gemini_model_2_0: str = "gemini-2.0-flash"
     gemini_model_2_5: str = "gemini-2.5-flash"
 
     api_key: Optional[str] = os.environ.get("GEMINI_API_KEY")
@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     gemini_client: GeminiClientManager = GeminiClientManager(api_key=api_key)
 
-    PAGES_TO_ANALYZE_FOR_CHAPTERS: int = 10
-    PAGES_TO_ANALYZE_FOR_FIRST_CHAPTER_PHYSICAL_PAGE: int = 25
+    PAGES_TO_ANALYZE_FOR_CHAPTERS: int = 30
+    PAGES_TO_ANALYZE_FOR_FIRST_CHAPTER_PHYSICAL_PAGE: int = 40
 
     pdf_files_to_process: List[str] = [
         f for f in os.listdir(pdf_folder) if f.lower().endswith(".pdf")
@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
             book_structure = get_chapters_from_gemini(
                 full_pdf_path,
-                gemini_model_1_5,
+                gemini_model_2_0,
                 gemini_model_2_5,
                 gemini_client,
                 lang=_.get_current_language().value,
@@ -90,7 +90,7 @@ if __name__ == "__main__":
                 logger.error(
                     _.get_string(
                         'chapter_info_error',
-                        model=gemini_model_1_5,
+                        model=gemini_model_2_0,
                         error='No structure returned'
                     )
                 )
