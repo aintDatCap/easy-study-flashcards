@@ -5,3 +5,4 @@
 *.spec
 *.lock
 .pytest_cache/
+/tests/assets/

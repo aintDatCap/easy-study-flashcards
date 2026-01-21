@@ -20,7 +20,8 @@ from easy_study_flashcards.utils.localization import localizer as _
 from loguru import logger
 
 from easy_study_flashcards.pdf_processing.core import PDFProcessor
-from google.genai.errors import ClientError, ServerError
+from google.genai.errors import ServerError
+
 
 class GeminiClientManager(genai.Client):
     """
@@ -69,8 +70,10 @@ class GeminiClientManager(genai.Client):
         Wrapper around the generate_content method that respects the rate limit.
         """
         self._wait_for_rate_limit()
-        
-        input_tokens = self.models.count_tokens(model=kwargs["model"], contents=kwargs["contents"]).total_tokens
+
+        input_tokens = self.models.count_tokens(
+            model=kwargs["model"], contents=kwargs["contents"]
+        ).total_tokens
 
         while True:
             try:
@@ -80,12 +83,18 @@ class GeminiClientManager(genai.Client):
             except ServerError as err:
                 # Unavailable
                 if err.code == 503:
-                    logger.warning("Gemini server is being overused, waiting 10 seconds")
+                    logger.warning(
+                        "Gemini server is being overused, waiting 10 seconds"
+                    )
                     time.sleep(10)
 
-        output_tokens = response.usage_metadata.candidates_token_count if response.usage_metadata is not None else 0
+        output_tokens = (
+            response.usage_metadata.candidates_token_count
+            if response.usage_metadata is not None
+            else 0
+        )
 
-        self.print_generated_content_cost(input_tokens , output_tokens , kwargs["model"])
+        self.print_generated_content_cost(input_tokens, output_tokens, kwargs["model"])
 
         # Record the timestamp of the new request
         self.request_timestamps.append(time.time())
@@ -104,10 +113,7 @@ class GeminiClientManager(genai.Client):
                 "input": 0.30,  # $0.30 per 1M input tokens
                 "output": 2.50,  # $2.50 per 1M output tokens
             },
-            "gemini-1.5-flash": {
-                "input": 0.075,
-                "output":0.15
-            },
+            "gemini-1.5-flash": {"input": 0.075, "output": 0.15},
         }
 
         if model_name not in pricing:
@@ -122,7 +128,9 @@ class GeminiClientManager(genai.Client):
 
         self.total_cost += content_cost
 
-        print(f"{Colors.BOLD}Total cost: ${content_cost.amount_as_string()}. Input tokens: {input_tokens}, output tokens: {output_tokens} {Colors.ENDC}")
+        print(
+            f"{Colors.BOLD}Total cost: ${content_cost.amount_as_string()}. Input tokens: {input_tokens}, output tokens: {output_tokens} {Colors.ENDC}"
+        )
 
 
 def get_chapters_from_gemini(
@@ -140,12 +148,12 @@ def get_chapters_from_gemini(
     Returns a BookStructure object.
     """
 
-    assert (
-        pages_to_process_chapters > 0
-    ), "pages_to_process_chapters should be bigger than 0"
-    assert (
-        pages_to_process_physical_page > 0
-    ), "pages_to_process_physical_page should be bigger than 0"
+    assert pages_to_process_chapters > 0, (
+        "pages_to_process_chapters should be bigger than 0"
+    )
+    assert pages_to_process_physical_page > 0, (
+        "pages_to_process_physical_page should be bigger than 0"
+    )
 
     print(
         f"\n--- {Colors.OKBLUE}{_.get_string('chapter_analysis_start', filename=pdf_path.name)}{Colors.ENDC} ---"
@@ -213,11 +221,13 @@ def get_chapters_from_gemini(
             f"{Colors.OKGREEN}Chapter information successfully extracted from '{model_name_chapters}'.{Colors.ENDC}"
         )
     except Exception as e:
-        logger.error(
-            f"Error getting chapters from '{model_name_chapters}': {e}"
-        )
-        if "gemini_response_chapters" in locals() and hasattr(gemini_response_chapters, "text"):  # type: ignore
-            print(f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_chapters.text}{Colors.ENDC}")  # type: ignore
+        logger.error(f"Error getting chapters from '{model_name_chapters}': {e}")
+        if "gemini_response_chapters" in locals() and hasattr(
+            gemini_response_chapters, "text"
+        ):  # type: ignore
+            print(
+                f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_chapters.text}{Colors.ENDC}"
+            )  # type: ignore
         return None
 
     # --- PHASE 2: Extract physical page of the first chapter with Gemini 2.5 (using pages_to_process_physical_page) ---
@@ -228,20 +238,18 @@ def get_chapters_from_gemini(
         f"{Colors.OKCYAN}Sending first {num_pages_to_extract_physical_page} pages to '{model_name_physical_page}' for first chapter physical page extraction...{Colors.ENDC}"
     )
     try:
-        gemini_response_physical_page: GenerateContentResponse = (
-            client.generate_content_with_rate_limit(
-                model=model_name_physical_page,
-                contents=[
-                    Part.from_bytes(
-                        data=sub_pdf_bytes_physical_page.getvalue(),
-                        mime_type="application/pdf",
-                    ),
-                    prompt_physical_page,
-                ],
-                config={
-                    "response_mime_type": "text/plain",  # We expect only an integer as text
-                },
-            )
+        gemini_response_physical_page: GenerateContentResponse = client.generate_content_with_rate_limit(
+            model=model_name_physical_page,
+            contents=[
+                Part.from_bytes(
+                    data=sub_pdf_bytes_physical_page.getvalue(),
+                    mime_type="application/pdf",
+                ),
+                prompt_physical_page,
+            ],
+            config={
+                "response_mime_type": "text/plain",  # We expect only an integer as text
+            },
         )
         if gemini_response_physical_page.text is None:
             print(
@@ -267,8 +275,12 @@ def get_chapters_from_gemini(
         print(
             f"{Colors.FAIL}Error getting the first chapter's physical page from '{model_name_physical_page}': {e}{Colors.ENDC}"
         )
-        if "gemini_response_physical_page" in locals() and hasattr(gemini_response_physical_page, "text"):  # type: ignore
-            print(f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_physical_page.text}{Colors.ENDC}")  # type: ignore
+        if "gemini_response_physical_page" in locals() and hasattr(
+            gemini_response_physical_page, "text"
+        ):  # type: ignore
+            print(
+                f"{Colors.FAIL}Raw response from Gemini (on error): {gemini_response_physical_page.text}{Colors.ENDC}"
+            )  # type: ignore
         return None
 
     if chapters_info is not None and first_chapter_physical_page is not None:
