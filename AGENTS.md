@@ -11,6 +11,10 @@ DeepSeek.
 
 ```
 easy-study-flashcards/
+├── .agents/                     # Agent skills (coding standards, testing patterns)
+│   └── skills/
+│       ├── python-code-style/   # Python code style & type hints
+│       └── python-testing-patterns/  # pytest & testing best practices
 ├── easy_study_flashcards/       # Main application package
 │   ├── __init__.py              # Entry point — runs the full pipeline
 │   ├── deepseek/                # DeepSeek AI integration
@@ -139,3 +143,65 @@ Test PDFs are downloaded from Google Drive via `gdown` when running tests
   executable from `easy_study_flashcards/__init__.py`.
 - **`zip.py`**: Creates a `.pyz` zipapp archive using the virtual
   environment's Python interpreter.
+
+---
+
+## Python Coding Standards (Mandatory)
+
+The project ships with installed agent skills at `.agents/skills/` that define
+non-negotiable Python coding standards. **Before writing or modifying any code,
+read the relevant skill file first:**
+
+| Skill | SKILL.md Location |
+|-------|-------------------|
+| Code Style & Types | `.agents/skills/python-code-style/SKILL.md` |
+| Testing Patterns | `.agents/skills/python-testing-patterns/SKILL.md` |
+
+### Required Practices
+
+**1. Type Annotations (Strict)**
+- Every function and method MUST have complete type hints for all parameters and return values.
+- Every module-level variable and class attribute MUST be typed.
+- Use `from __future__ import annotations` where needed for forward references.
+- Prefer `list[X]` / `dict[K, V]` / `set[X]` over `typing.List[X]` etc. (Python 3.9+ syntax).
+- Use `X | None` over `Optional[X]` (Python 3.10+ syntax).
+
+**2. Error Handling with Loguru**
+- Use `loguru.logger` for ALL logging — never use `print()` for debugging or diagnostics.
+- Use `logger.info()`, `logger.warning()`, `logger.error()`, `logger.success()` appropriately.
+- Catch specific exception types; avoid bare `except:`.
+- Log meaningful context in every error handler (include inputs, state, or identifiers).
+- Use structured logging: `logger.error("Failed to process {file}: {error}", file=path, error=e)`.
+
+**3. Proper Error Propagation**
+- Functions that can fail should return `Optional[T]` or raise domain-specific exceptions.
+- Do not swallow exceptions silently — at minimum log the error and re-raise or return a sentinel.
+- Validate inputs at the boundary (assertions for invariants, conditional checks for user data).
+
+**4. Docstrings (Google Style)**
+- Every public class, function, and method MUST have a Google-style docstring.
+- Always document: single-line summary, Args (with types), Returns, Raises.
+
+**5. Imports**
+- Group in order: standard library → third-party → local project. Separate groups with a blank line.
+- Always use absolute imports (`from easy_study_flashcards.xxx import Y`), never relative.
+
+**6. Naming**
+- Classes: `PascalCase`
+- Functions, variables, methods: `snake_case`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Private members: prefix with `_` or `__` for name mangling.
+- Files and modules: `snake_case.py` — descriptive, no abbreviations.
+
+**7. Testing**
+- Read `.agents/skills/python-testing-patterns/SKILL.md` before writing tests.
+- Follow AAA pattern (Arrange, Act, Assert).
+- Use descriptive test names: `test_<unit>_<scenario>_<expected_outcome>`.
+- Use fixtures and mocks from `conftest.py` for shared setup.
+- Every bug fix MUST include a regression test.
+
+**8. Logging Over Print**
+- `print()` is FORBIDDEN in production code. Use `logger` instead.
+- Console output to the user (progress, colors) should go through the existing `Colors` class + `print()`
+  only where the original codebase already does so (e.g. terminal UI).
+- Any new status output MUST use `loguru.logger` at the appropriate level.
