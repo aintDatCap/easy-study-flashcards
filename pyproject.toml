@@ -1,0 +1,22 @@
+[project]
+name = "easy-study-flashcards"
+version = "0.1.0"
+description = "Extracts PDF chapters and generates study material (flashcards) from them using Google Gemini."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.13"
+dependencies = [
+    "pypdf>=5.9.0",
+    "google-genai>=1.28.0",
+    "pyinstaller>=6.15.0",
+    "loguru>=0.7.3",
+    "stockholm",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-asyncio>=1.1.0",
+    "gdown>=5.2.1",
+]
