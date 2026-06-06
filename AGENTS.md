@@ -64,6 +64,9 @@ easy-study-flashcards/
 This project uses **uv** (not pip/pipenv). Dependencies are declared in
 `pyproject.toml` and locked in `uv.lock`.
 
+See the [uv documentation (llms.txt)](https://docs.astral.sh/uv/llms.txt) for
+reference on uv commands and project configuration.
+
 ### Key packages
 
 | Package          | Purpose                          |
