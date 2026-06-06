@@ -1,5 +1,6 @@
-import pytest
 import os
+
+import pytest
 
 
 @pytest.fixture(scope="session")
@@ -16,7 +17,7 @@ def test_assets_dir():
             import gdown
         except ImportError:
             raise ImportError(
-                "gdown is required to download test assets. Please install it with 'pipenv install --dev'."
+                "gdown is required to download test assets. Please install it with 'uv add --dev gdown'."
             )
 
         file_ids = [
@@ -49,7 +50,7 @@ def sample_pdf_content():
     Chapter 1: Introduction to Mathematics
     1.1 Basic Concepts
     1.2 Number Systems
-    
+
     Chapter 2: Linear Algebra
     2.1 Vectors
     2.2 Matrices

@@ -1,42 +1,45 @@
-class PromptsForGemini:
-
+class PromptsForDeepSeek:
     @staticmethod
     def get_prompt_chapters_pages(lang: str, pages_to_scan: int) -> str:
-        assert (
-            lang in PromptsForGemini.prompts
-        ), "Invalid language provided to PromptsForGemini.get_prompt_chapters_pages"
+        assert lang in PromptsForDeepSeek.prompts, (
+            "Invalid language provided to PromptsForDeepSeek.get_prompt_chapters_pages"
+        )
         assert pages_to_scan > 0, "pages_to_scan should be an integer bigger than 0"
 
-        return PromptsForGemini.prompts[lang]["prompt_chapters_pages"].format(
+        return PromptsForDeepSeek.prompts[lang]["prompt_chapters_pages"].format(
             pages_to_scan=pages_to_scan
         )
 
     @staticmethod
     def get_prompt_first_chapter_physical_page(lang: str, pages_to_scan: int) -> str:
-        assert (
-            lang in PromptsForGemini.prompts
-        ), "Invalid language provided to PromptsForGemini.get_prompt_first_chapter_physical_page"
+        assert lang in PromptsForDeepSeek.prompts, (
+            "Invalid language provided to PromptsForDeepSeek.get_prompt_first_chapter_physical_page"
+        )
         assert pages_to_scan > 0, "pages_to_scan should be an integer bigger than 0"
 
-        return PromptsForGemini.prompts[lang][
+        return PromptsForDeepSeek.prompts[lang][
             "prompt_first_chapter_physical_page"
         ].format(pages_to_scan=pages_to_scan)
 
     @staticmethod
-    def get_prompt_to_elaborate_single_pdf(lang: str, subject_matter:str) -> str:
+    def get_prompt_to_elaborate_single_pdf(lang: str, subject_matter: str) -> str:
         """
         Gets the prompt template for elaborating a single PDF and formats it with the subject matter.
         """
-        assert lang in PromptsForGemini.prompts, "Invalid language provided"
-        return PromptsForGemini.prompts[lang]["prompt_elaborate_single_pdf"].replace("**[subject]**", subject_matter)
+        assert lang in PromptsForDeepSeek.prompts, "Invalid language provided"
+        return PromptsForDeepSeek.prompts[lang]["prompt_elaborate_single_pdf"].replace(
+            "**[subject]**", subject_matter
+        )
 
     @staticmethod
     def get_prompt_for_error_correction(lang: str, error_message: str) -> str:
-        assert (
-            lang in PromptsForGemini.prompts
-        ), "Invalid language provided to PromptsForGemini.get_prompt_for_error_correction"
+        assert lang in PromptsForDeepSeek.prompts, (
+            "Invalid language provided to PromptsForDeepSeek.get_prompt_for_error_correction"
+        )
 
-        return PromptsForGemini.prompts[lang]["prompt_error_correction"].replace("**[error_message]**", error_message)
+        return PromptsForDeepSeek.prompts[lang]["prompt_error_correction"].replace(
+            "**[error_message]**", error_message
+        )
 
     # Translated through AI, I'm way too lazy to do that by myself
     prompts: dict[str, dict[str, str]] = {
@@ -62,7 +65,7 @@ class PromptsForGemini:
                 For example, if the first chapter is found on physical page 8 of the PDF, you should return 8.
                 Your answer must be *exclusively* the integer of the physical page. Do not add any additional text, explanation, or formatting.
             """,
-            "prompt_elaborate_single_pdf": r""" 
+            "prompt_elaborate_single_pdf": r"""
                 **Role:** You are an AI assistant specialized in processing academic documents. Your expertise is in analyzing and restructuring technical content for any subject matter.
 
                 I am analyzing a PDF document containing educational material (lectures, notes, handouts) related to "**[subject]**". I need to create a structured LaTeX document that summarizes key concepts, extracts presented exercises, and generates new exercises.
@@ -179,72 +182,72 @@ class PromptsForGemini:
                 Ad esempio, se il primo capitolo si trova nella pagina fisica 8 del PDF, devi restituire 8.
                 La tua risposta deve essere *esclusivamente* il numero intero della pagina fisica. Non aggiungere alcun testo aggiuntivo, spiegazione o formattazione.
             """,
-            "prompt_elaborate_single_pdf": r""" 
-                 **Ruolo:** Sei un assistente AI esperto nell'elaborazione di documenti accademici. La tua specializzazione è l'analisi e la ristrutturazione di contenuti tecnici, per qualsiasi materia. 
+            "prompt_elaborate_single_pdf": r"""
+                 **Ruolo:** Sei un assistente AI esperto nell'elaborazione di documenti accademici. La tua specializzazione è l'analisi e la ristrutturazione di contenuti tecnici, per qualsiasi materia.
 
-                 Sto analizzando un documento PDF contenente materiale didattico (lezioni, appunti, dispense) relativo a "**[subject]**". Ho bisogno di creare un documento strutturato in LaTeX che riassuma i concetti chiave, estragga gli esercizi presentati e generi nuovi esercizi. 
+                 Sto analizzando un documento PDF contenente materiale didattico (lezioni, appunti, dispense) relativo a "**[subject]**". Ho bisogno di creare un documento strutturato in LaTeX che riassuma i concetti chiave, estragga gli esercizi presentati e generi nuovi esercizi.
 
-                 1.  Analizza attentamente il testo del documento PDF che ti verrà fornito. 
-                 2.  **Identifica e estrai l'intestazione del documento, se presente, come il titolo principale, l'autore e la data.**                 
+                 1.  Analizza attentamente il testo del documento PDF che ti verrà fornito.
+                 2.  **Identifica e estrai l'intestazione del documento, se presente, come il titolo principale, l'autore e la data.**
                  3.  **Identifica e estrai tutti i teoremi o principi/leggi presentati.** Per ogni teorema, dovrai includere il suo enunciato completo e, se presente, il suo numero (es. Teorema 1.1, Legge di Ohm). **Non devi fornire la dimostrazione del teorema, ma richiedi al lettore di farlo.**
                  4.  **Identifica e estrai le definizioni dei concetti chiave.** Per ogni concetto, dovrai indicare il termine da definire richiedendo poi al lettore di dare la definizione e aggiungendo il numero della definizione. **È fondamentale che l'ordine di presentazione dei teoremi e delle definizioni nel documento LaTeX rispecchi l'ordine in cui appaiono nel PDF originale.**
                  5.  **Identifica e estrai gli esercizi presentati.** Per ogni esercizio, dovrai includere il testo completo dell'esercizio. **Se il testo dell'esercizio originale non è esplicitamente presente ma è solo un riferimento (es. "Esercizio 1"), l'AI dovrà generare un testo dell'esercizio rappresentativo basandosi sul contesto circostante o sul tipo di problema tipico di quell'argomento.** **Non devi fornire la soluzione dell'esercizio.**
                  6.  **Genera 1 esercizio aggiuntivo per ciascun esercizio estratto.** Questi esercizi generati dall'AI devono richiedere gli stessi strumenti concettuali per la risoluzione degli esercizi originali, ma devono presentare dati, contesti o scenari diversi in modo da essere concettualmente distinti. Assicurati che siano coerenti con il livello di difficoltà e gli argomenti trattati nel documento originale.
-                 7.  Ignora completamente: 
-                     * Dimostrazioni complete di teoremi. 
-                     * Commenti o spiegazioni aggiuntive che non rientrano nelle categorie sopra menzionate (teoremi, definizioni, esercizi). 
-                     * Griglie di valutazione o punteggi. 
-                     * **Contenuto completo del libro o sezioni esplicative approfondite che non siano teoremi, definizioni o esercizi.**                     
-                     * **ISBN o qualsiasi altro dato editoriale.**                 
-                * Il file finale deve essere in formato LaTeX (`.tex`). 
-                * **Inizia il file con la seguente struttura LaTeX:**                     
-                    \documentclass{article} 
-                     \usepackage[utf8]{inputenc} 
-                     \usepackage{amsmath} % Per equazioni matematiche avanzate 
-                     \usepackage{amsfonts} % Per simboli matematici aggiuntivi 
-                     \usepackage{amssymb} % Per simboli matematici aggiuntivi 
-                     \usepackage{enumitem} % Per personalizzare gli elenchi 
-                     \usepackage{fancyhdr} % Per intestazioni/piè di pagina (opzionale, se serve) 
-                     \usepackage{hyperref} % Per link (opzionale) 
-                     \usepackage{xcolor} % Per colori (opzionale, se serve) 
-                     \usepackage{courier} % Per testo monospaced (o altro font monospaced desiderato) 
-                     \usepackage{listings} % Per blocchi di codice e pseudocodice 
-                     \lstset{ 
-                         basicstyle=\ttfamily, % Font monospaced per il codice 
-                         columns=fullflexible, % Adatta le colonne al testo 
-                         breaklines=true, % Spezza le righe lunghe 
-                         frame=single, % Cornice intorno ai blocchi di codice 
-                         showstringspaces=false % Non mostrare spazi nelle stringhe 
-                         % Puoi aggiungere altre opzioni per la formattazione del codice 
-                     } 
+                 7.  Ignora completamente:
+                     * Dimostrazioni complete di teoremi.
+                     * Commenti o spiegazioni aggiuntive che non rientrano nelle categorie sopra menzionate (teoremi, definizioni, esercizi).
+                     * Griglie di valutazione o punteggi.
+                     * **Contenuto completo del libro o sezioni esplicative approfondite che non siano teoremi, definizioni o esercizi.**
+                     * **ISBN o qualsiasi altro dato editoriale.**
+                * Il file finale deve essere in formato LaTeX (`.tex`).
+                * **Inizia il file con la seguente struttura LaTeX:**
+                    \documentclass{article}
+                     \usepackage[utf8]{inputenc}
+                     \usepackage{amsmath} % Per equazioni matematiche avanzate
+                     \usepackage{amsfonts} % Per simboli matematici aggiuntivi
+                     \usepackage{amssymb} % Per simboli matematici aggiuntivi
+                     \usepackage{enumitem} % Per personalizzare gli elenchi
+                     \usepackage{fancyhdr} % Per intestazioni/piè di pagina (opzionale, se serve)
+                     \usepackage{hyperref} % Per link (opzionale)
+                     \usepackage{xcolor} % Per colori (opzionale, se serve)
+                     \usepackage{courier} % Per testo monospaced (o altro font monospaced desiderato)
+                     \usepackage{listings} % Per blocchi di codice e pseudocodice
+                     \lstset{
+                         basicstyle=\ttfamily, % Font monospaced per il codice
+                         columns=fullflexible, % Adatta le colonne al testo
+                         breaklines=true, % Spezza le righe lunghe
+                         frame=single, % Cornice intorno ai blocchi di codice
+                         showstringspaces=false % Non mostrare spazi nelle stringhe
+                         % Puoi aggiungere altre opzioni per la formattazione del codice
+                     }
 
-                     \pagestyle{plain} % O fancy se usi fancyhdr 
+                     \pagestyle{plain} % O fancy se usi fancyhdr
 
-                     \begin{document} 
-                 * **Dopo `\begin{document}`, inserisci l'intestazione estratta, se presente, formattandola come segue:**                     * Il titolo principale usando `\title{}` e `\maketitle`. 
-                     * L'autore usando `\author{}`. 
-                 * **Utilizza le seguenti sezioni per organizzare il contenuto:**                     * **Contenuti Estratti:** Utilizza una sezione intitolata `\section*{Contenuti Estratti}`. All'interno di questa sezione, elenca teoremi e definizioni nell'ordine esatto in cui sono stati trovati nel documento originale. 
-                         * Ogni teorema deve essere presentato come un elemento di un elenco numerato (`enumerate`). L'enunciato deve seguire il formato: `\textbf{Teorema/Principio/Legge [Numero/Nome]:} [Enunciato completo]. \par \textbf{Dimostrazione:} [Lasciare spazio per la dimostrazione del lettore]` 
-                         * Ogni concetto da definire deve essere presentato come un elemento di un elenco numerato (`enumerate`). La definizione deve seguire il formato: `\textbf{Definizione [Numero della Definizione]:} Definire [Concetto da Definire].` 
-                     * **Esercizi Originali:** Utilizza una sezione intitolata `\section*{Esercizi Originali}`. Ogni esercizio deve essere presentato come un elemento di un elenco numerato (`enumerate`). Il testo dell'esercizio deve seguire il formato: `\textbf{Esercizio [Numero dell'Esercizio]:} [Testo completo dell'esercizio generato dall'AI se mancante o estratto].` 
-                     * **Esercizi Generati dall'AI:** Utilizza una sezione intitolata `\section*{Esercizi Generati dall'AI}`. Ogni esercizio generato deve essere un elemento di un elenco numerato (`enumerate`). Il formato deve essere: 
-                         ```latex 
-                         \begin{enumerate} 
-                             \item [Testo del primo esercizio generato.] 
-                             \item [Testo del secondo esercizio generato.] 
-                             \item [Testo del terzo esercizio generato.] 
-                             ... 
-                             \item [Testo dell'n-esimo esecizio generato.] 
-                         \end{enumerate} 
-                         ``` 
-                 * Mantieni la formattazione originale del testo estratto: 
-                     * Il **grassetto** deve essere `\textbf{testo}`. 
-                     * Il `monospace` per il codice inline deve essere `\texttt{codice}`. 
-                 * Per le notazioni matematiche e scientifiche, utilizza la formattazione LaTeX standard: 
-                     * Includi le espressioni matematiche inline all'interno di `$ $`. 
-                     * Includi i blocchi di equazioni all'interno di `$$ $$` o ambienti come `equation*` o `align*`. 
-                 * Alla fine del documento, chiudi l'ambiente `document` con `\end{document}`. 
-                 * **[REGOLA CRITICA]** La tua risposta deve contenere *esclusivamente* il contenuto LaTeX. Non includere alcuna frase introduttiva, di saluto o di spiegazione (es. "Ecco l'output...", "Certo, ecco le domande...", ecc.). La tua risposta deve iniziare direttamente con `\documentclass{article}`. 
+                     \begin{document}
+                 * **Dopo `\begin{document}`, inserisci l'intestazione estratta, se presente, formattandola come segue:**                     * Il titolo principale usando `\title{}` e `\maketitle`.
+                     * L'autore usando `\author{}`.
+                 * **Utilizza le seguenti sezioni per organizzare il contenuto:**                     * **Contenuti Estratti:** Utilizza una sezione intitolata `\section*{Contenuti Estratti}`. All'interno di questa sezione, elenca teoremi e definizioni nell'ordine esatto in cui sono stati trovati nel documento originale.
+                         * Ogni teorema deve essere presentato come un elemento di un elenco numerato (`enumerate`). L'enunciato deve seguire il formato: `\textbf{Teorema/Principio/Legge [Numero/Nome]:} [Enunciato completo]. \par \textbf{Dimostrazione:} [Lasciare spazio per la dimostrazione del lettore]`
+                         * Ogni concetto da definire deve essere presentato come un elemento di un elenco numerato (`enumerate`). La definizione deve seguire il formato: `\textbf{Definizione [Numero della Definizione]:} Definire [Concetto da Definire].`
+                     * **Esercizi Originali:** Utilizza una sezione intitolata `\section*{Esercizi Originali}`. Ogni esercizio deve essere presentato come un elemento di un elenco numerato (`enumerate`). Il testo dell'esercizio deve seguire il formato: `\textbf{Esercizio [Numero dell'Esercizio]:} [Testo completo dell'esercizio generato dall'AI se mancante o estratto].`
+                     * **Esercizi Generati dall'AI:** Utilizza una sezione intitolata `\section*{Esercizi Generati dall'AI}`. Ogni esercizio generato deve essere un elemento di un elenco numerato (`enumerate`). Il formato deve essere:
+                         ```latex
+                         \begin{enumerate}
+                             \item [Testo del primo esercizio generato.]
+                             \item [Testo del secondo esercizio generato.]
+                             \item [Testo del terzo esercizio generato.]
+                             ...
+                             \item [Testo dell'n-esimo esecizio generato.]
+                         \end{enumerate}
+                         ```
+                 * Mantieni la formattazione originale del testo estratto:
+                     * Il **grassetto** deve essere `\textbf{testo}`.
+                     * Il `monospace` per il codice inline deve essere `\texttt{codice}`.
+                 * Per le notazioni matematiche e scientifiche, utilizza la formattazione LaTeX standard:
+                     * Includi le espressioni matematiche inline all'interno di `$ $`.
+                     * Includi i blocchi di equazioni all'interno di `$$ $$` o ambienti come `equation*` o `align*`.
+                 * Alla fine del documento, chiudi l'ambiente `document` con `\end{document}`.
+                 * **[REGOLA CRITICA]** La tua risposta deve contenere *esclusivamente* il contenuto LaTeX. Non includere alcuna frase introduttiva, di saluto o di spiegazione (es. "Ecco l'output...", "Certo, ecco le domande...", ecc.). La tua risposta deve iniziare direttamente con `\documentclass{article}`.
              """,
             "prompt_error_correction": r"""
                 Il codice LaTeX che hai generato in precedenza per il documento è risultato non valido durante la compilazione.

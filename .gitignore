@@ -6,3 +6,6 @@
 Pipfile.lock
 .pytest_cache/
 /tests/assets/
+
+# Environment variables
+.env

@@ -37,7 +37,7 @@ class LocalizedStrings:
             "miktex_success": "MiKTeX installation completed successfully",
             # API Messages
             "rate_limit": "Request limit reached. Waiting for {seconds:.2f} seconds...",
-            "api_key_missing": "Error: The 'GEMINI_API_KEY' environment variable is not set. Please set it before running the script.",
+            "api_key_missing": "Error: The 'DEEPSEEK_API_KEY' environment variable is not set. Please set it in your .env file or environment.",
             # Input Messages
             "subject_prompt": "What subject do you want to generate study cards for? (e.g., 'Linear Algebra', 'Roman History', 'Quantum Physics'): ",
             "no_subject": "No subject specified. Using 'generic subject'.",
@@ -64,7 +64,6 @@ class LocalizedStrings:
             "no_pdf_files": "Nessun file PDF trovato nella cartella: {folder}",
             "folder_not_exist": "La cartella specificata non esiste: {folder}",
             "processing_complete": "Elaborazione PDF con Gemini SDK completata.",
-
             "pdf_no_page_extracted_warning": "Nessuna pagina estratta tra gli indici {start_page_index} e {end_page_index}.",
             "pdf_pages_extraction_error": "Errore durante l'estrazione delle pagine PDF:{error}",
             # LaTeX Messages
@@ -83,7 +82,7 @@ class LocalizedStrings:
             "miktex_success": "Installazione MiKTeX completata con successo",
             # API Messages
             "rate_limit": "Limite di richieste raggiunto. Attesa di {seconds:.2f} secondi...",
-            "api_key_missing": "Errore: La variabile d'ambiente 'GEMINI_API_KEY' non è impostata. Si prega di impostarla prima di eseguire lo script.",
+            "api_key_missing": "Errore: La variabile d'ambiente 'DEEPSEEK_API_KEY' non è impostata. Si prega di impostarla nel file .env o nelle variabili d'ambiente.",
             # Input Messages
             "subject_prompt": "Per quale materia vuoi generare le schede di studio? (es. 'Algebra Lineare', 'Storia Romana', 'Fisica Quantistica'): ",
             "no_subject": "Nessuna materia specificata. Utilizzo 'materia generica'.",
